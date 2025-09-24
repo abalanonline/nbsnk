@@ -82,4 +82,14 @@ public class Obj {
     return obj;
   }
 
+  public static void verify(Obj obj) {
+    for (int i = 0; i < obj.normal.length;) {
+      double x = obj.normal[i++];
+      double y = obj.normal[i++];
+      double z = obj.normal[i++];
+      double l = Math.sqrt(x * x + y * y + z * z);
+      if (0.9999 > l || l > 1.0001) throw new IllegalStateException();
+    }
+  }
+
 }
