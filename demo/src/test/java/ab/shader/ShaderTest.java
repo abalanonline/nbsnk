@@ -36,9 +36,10 @@ class ShaderTest {
   void test() throws InterruptedException, IOException {
     open = true;
     Obj obj = Obj.load(getClass()
-//        .getResourceAsStream("spot_triangulated.obj").readAllBytes());
+        .getResourceAsStream("spot_triangulated.obj").readAllBytes());
 //        .getResourceAsStream("teapot.obj").readAllBytes());
-        .getResourceAsStream("blender_cube.obj").readAllBytes());
+//        .getResourceAsStream("blender_cube.obj").readAllBytes());
+    Obj.fixNormal(obj);
     Obj.verify(obj);
     Screen screen = new Screen();
     screen.preferredSize = new Dimension(960, 540);

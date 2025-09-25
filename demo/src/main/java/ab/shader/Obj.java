@@ -82,6 +82,89 @@ public class Obj {
     return obj;
   }
 
+  private static double angle(double[] vertex, int a, int o, int b) {
+    double ox = vertex[o++];
+    double oy = vertex[o++];
+    double oz = vertex[o];
+    double ax = vertex[a++] - ox;
+    double ay = vertex[a++] - oy;
+    double az = vertex[a] - oz;
+    double bx = vertex[b++] - ox;
+    double by = vertex[b++] - oy;
+    double bz = vertex[b] - oz;
+    double dot = ax * bx + ay * by + az * bz; // dot
+    double am = Math.sqrt(ax * ax + ay * ay + az * az); // magnitude
+    double bm = Math.sqrt(bx * bx + by * by + bz * bz);
+    return Math.acos(dot / (am * bm));
+  }
+
+  public static void flatNormal(Obj obj) {
+    double[] faceNormal = new double[obj.face.length / 3];
+    for (int i = 0; i < obj.face.length / 9; i++) {
+      int v0 = obj.face[i * 9] * 3;
+      int v1 = obj.face[i * 9 + 3] * 3;
+      int v2 = obj.face[i * 9 + 6] * 3;
+      double x0 = obj.vertex[v0];
+      double y0 = obj.vertex[v0 + 1];
+      double z0 = obj.vertex[v0 + 2];
+      double x1 = obj.vertex[v1];
+      double y1 = obj.vertex[v1 + 1];
+      double z1 = obj.vertex[v1 + 2];
+      double x2 = obj.vertex[v2];
+      double y2 = obj.vertex[v2 + 1];
+      double z2 = obj.vertex[v2 + 2];
+      double ax = x1 - x0;
+      double ay = y1 - y0;
+      double az = z1 - z0;
+      double bx = x2 - x0;
+      double by = y2 - y0;
+      double bz = z2 - z0;
+      // cross product
+      double cx = ay * bz - az * by;
+      double cy = az * bx - ax * bz;
+      double cz = ax * by - ay * bx;
+      double l = Math.sqrt(cx * cx + cy * cy + cz * cz);
+      faceNormal[i * 3] = cx / l;
+      faceNormal[i * 3 + 1] = cy / l;
+      faceNormal[i * 3 + 2] = cz / l;
+      obj.face[i * 9 + 1] = i;
+      obj.face[i * 9 + 4] = i;
+      obj.face[i * 9 + 7] = i;
+    }
+    obj.normal = faceNormal;
+  }
+
+  public static void interpolateNormal(Obj obj) {
+    double[] vertexNormal = new double[obj.vertex.length];
+    for (int f = 0; f < obj.face.length / 9; f++) {
+      for (int v = 0; v < 3; v++) {
+        int va = obj.face[f * 9 + (v + 2) % 3 * 3] * 3;
+        int vo = obj.face[f * 9 + v * 3] * 3;
+        int vb = obj.face[f * 9 + (v + 1) % 3 * 3] * 3;
+        double a = angle(obj.vertex, va, vo, vb);
+        int n = obj.face[f * 9 + v * 3 + 1] * 3;
+        obj.face[f * 9 + v * 3 + 1] = vo / 3;
+        for (int i = 0; i < 3; i++) vertexNormal[vo++] += obj.normal[n++] * a;
+      }
+    }
+    for (int i = 0; i < vertexNormal.length / 3; i++) {
+      double x = vertexNormal[i * 3];
+      double y = vertexNormal[i * 3 + 1];
+      double z = vertexNormal[i * 3 + 2];
+      double m = Math.sqrt(x * x + y * y + z * z); // magnitude
+      vertexNormal[i * 3] /= m;
+      vertexNormal[i * 3 + 1] /= m;
+      vertexNormal[i * 3 + 2] /= m;
+    }
+    obj.normal = vertexNormal;
+  }
+
+  public static void fixNormal(Obj obj) {
+    if (obj.normal != null) return;
+    flatNormal(obj);
+    interpolateNormal(obj);
+  }
+
   public static void verify(Obj obj) {
     for (int i = 0; i < obj.normal.length;) {
       double x = obj.normal[i++];
