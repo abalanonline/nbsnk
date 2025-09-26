@@ -24,11 +24,8 @@ import org.junit.jupiter.api.Test;
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -40,9 +37,43 @@ class ShaderTest {
 
   boolean open;
 
+  void runShader(Screen screen, Obj obj, BufferedImage texture) {
+    int[] textureRaster = null;
+    int textureWidth = 0;
+    int textureHeight = 0;
+    if (texture != null) {
+      textureWidth = texture.getWidth();
+      textureHeight = texture.getHeight();
+      textureRaster = new int[textureWidth * textureHeight];
+      for (int y = 0; y < textureHeight; y++) {
+        for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = texture.getRGB(x, y);
+      }
+    }
+    screen.keyListener = key -> { if (key.equals("Esc")) open = false; };
+    int width = screen.image.getWidth();
+    int height = screen.image.getHeight();
+    Graphics graphics = screen.image.createGraphics();
+    graphics.setColor(Color.DARK_GRAY);
+    Shader shader = new Shader(width, height);
+    open = true;
+    FpsMeter fpsMeter = new FpsMeter();
+    while (open) {
+      shader.cls();
+      int[] buffer = shader.run(textureRaster, textureWidth, textureHeight,
+          obj, Instant.now().toEpochMilli() / 60_000.0);
+      screen.image.getRaster().setDataElements(0, 0, width, height, buffer);
+      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
+      screen.update();
+    }
+  }
+
   @Disabled
   @Test
   void testPhongTexture() throws IOException {
+    // Spot performance:
+    // 66 fps with texture
+    // 180 fps after replacing BufferedImage with int array
+    // 200 fps 12MiB pre-calculated normalized viewer angle
     BufferedImage texture = null;
     Obj obj = Obj.load(getClass()
 //        .getResourceAsStream("blender_cube.obj").readAllBytes());
@@ -56,51 +87,19 @@ class ShaderTest {
     Screen screen = new Screen();
     screen.preferredSize = new Dimension(960, 540);
     screen.image = new BufferedImage(960, 540, BufferedImage.TYPE_INT_RGB);
-    screen.keyListener = key -> { if (key.equals("Esc")) open = false; };
-
-    int width = screen.image.getWidth();
-    int height = screen.image.getHeight();
-    BufferedImage doubleBufferedImage = new BufferedImage(
-        screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
-    Graphics graphics = doubleBufferedImage.createGraphics();
-    graphics.setColor(Color.DARK_GRAY);
-    FpsMeter fpsMeter = new FpsMeter();
-    open = true;
-    while (open) {
-      graphics.clearRect(0, 0, width, height);
-      Shader.run(doubleBufferedImage, obj, texture, Instant.now().toEpochMilli() / 60_000.0);
-      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
-      screen.image.getRaster().setDataElements(0, 0, doubleBufferedImage.getRaster());
-      screen.update();
-    }
+    runShader(screen, obj, texture);
   }
 
   @Disabled
   @Test
   void testSphere() throws IOException {
-    open = true;
     Obj obj = Obj.load(Files.readAllBytes(Paths.get("../assets/blender_uv_sphere.obj")));
     BufferedImage texture = ImageIO.read(Files.newInputStream(Paths.get("../assets/photosphere.jpg")));
     Obj.verify(obj);
     Screen screen = new Screen();
     screen.preferredSize = new Dimension(960, 540);
     screen.image = new BufferedImage(960, 540, BufferedImage.TYPE_INT_RGB);
-    screen.keyListener = key -> { if (key.equals("Esc")) open = false; };
-
-    int width = screen.image.getWidth();
-    int height = screen.image.getHeight();
-    BufferedImage doubleBufferedImage = new BufferedImage(
-        screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
-    Graphics graphics = doubleBufferedImage.createGraphics();
-    graphics.setColor(Color.DARK_GRAY);
-    FpsMeter fpsMeter = new FpsMeter();
-    while (open) {
-      graphics.clearRect(0, 0, width, height);
-      Shader.run(doubleBufferedImage, obj, texture, Instant.now().toEpochMilli() / 60_000.0);
-      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
-      screen.image.getRaster().setDataElements(0, 0, doubleBufferedImage.getRaster());
-      screen.update();
-    }
+    runShader(screen, obj, texture);
   }
 
   @Disabled
@@ -112,20 +111,7 @@ class ShaderTest {
     Obj.fixNormal(obj);
     Obj.verify(obj);
     Screen screen = new Screen();
-    screen.keyListener = key -> { if (key.equals("Esc")) open = false; };
-
-    int width = screen.image.getWidth();
-    int height = screen.image.getHeight();
-    BufferedImage doubleBufferedImage = new BufferedImage(
-        screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
-    Graphics graphics = doubleBufferedImage.createGraphics();
-    open = true;
-    while (open) {
-      graphics.clearRect(0, 0, width, height);
-      Shader.run(doubleBufferedImage, obj, null, Instant.now().toEpochMilli() / 60_000.0);
-      screen.image.getRaster().setDataElements(0, 0, doubleBufferedImage.getRaster());
-      screen.update();
-    }
+    runShader(screen, obj, null);
   }
 
   @Disabled
@@ -146,8 +132,9 @@ class ShaderTest {
         //double cr = Shader.barycentricValue(1, 1, 0, r); // r[0] + r[1];
         //double cg = Shader.barycentricValue(1, 0.5, 0, r); // r[0] + r[1] / 2;
         //double cb = Shader.barycentricValue(1, 0, 0, r); // r[0];
-        double[] rgb = Shader.barycentricValue(
-            new double[]{1, 1, 1}, 0, new double[]{1, 0.5, 0}, 0, new double[]{0, 0, 0}, 0, r, 3);
+        double[] rgb = new double[3];
+        Shader.barycentricValue(
+            new double[]{1, 1, 1}, 0, new double[]{1, 0.5, 0}, 0, new double[]{0, 0, 0}, 0, r, rgb);
         int cd7 = (int) (rgb[0] * 0xFF);
         int cd4 = (int) (rgb[1] * 0xFF);
         int i2 = (int) (rgb[2] * 0xFF);
@@ -158,6 +145,23 @@ class ShaderTest {
       screen.update();
       Thread.sleep(100);
     }
+  }
+
+  @Test
+  void viewerCenter() {
+    Shader shader = new Shader(2, 2);
+    double vxy = Math.abs(shader.viewer[0]);
+    double vz = shader.viewer[2];
+    assertEquals(vxy, Math.abs(shader.viewer[1]));
+    assertEquals(vxy, Math.abs(shader.viewer[3]));
+    assertEquals(vxy, Math.abs(shader.viewer[4]));
+    assertEquals(vz, shader.viewer[5]);
+    assertEquals(vxy, Math.abs(shader.viewer[6]));
+    assertEquals(vxy, Math.abs(shader.viewer[7]));
+    assertEquals(vz, shader.viewer[8]);
+    assertEquals(vxy, Math.abs(shader.viewer[9]));
+    assertEquals(vxy, Math.abs(shader.viewer[10]));
+    assertEquals(vz, shader.viewer[11]);
   }
 
 }

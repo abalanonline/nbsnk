@@ -17,9 +17,6 @@
 
 package ab.shader;
 
-import java.awt.Color;
-import java.awt.Graphics;
-import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.stream.IntStream;
@@ -29,33 +26,93 @@ public class Shader {
   public static final double FOCAL_LENGTH = 50;
   public static final double FILM_HEIGHT = 24;
 
+  public final int[] imageRaster;
+  public final int imageWidth;
+  public final int imageHeight;
+  public final double[] zbuffer;
+  public final double[] viewer;
+  public int[] textureRaster;
+  public int textureWidth;
+  public int textureHeight;
+  public int[] face; // current obj
+  public double[] vertex;
+  public double[] normal;
+  public double[] texture;
+
+  public Shader(int imageWidth, int imageHeight) {
+    this.imageRaster = new int[imageWidth * imageHeight];
+    this.imageWidth = imageWidth;
+    this.imageHeight = imageHeight;
+    this.zbuffer = new double[imageWidth * imageHeight];
+    this.viewer = new double[imageWidth * imageHeight * 3];
+    double[] v = new double[3];
+    final double viewerZ = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
+    double imageHeight2 = imageHeight / -2.0 + 0.5;
+    double imageWidth2 = imageWidth / 2.0 - 0.5;
+    for (int y = 0, j = 0; y < imageHeight; y++) {
+      for (int x = 0; x < imageWidth; x++) {
+        v[0] = imageWidth2 - x;
+        v[1] = imageHeight2 + y;
+        v[2] = viewerZ;
+        normalize(v);
+        for (int i = 0; i < 3; i++) viewer[j++] = v[i];
+      }
+    }
+  }
+
   /**
    * Vertex coordinates are in screen units (left handed), no further transformation required.
    * Z from 0 (very) far to 1 near.
    */
-  public static void rasterization(BufferedImage image, int[] face, double[] vertex, double[] normal,
-      double[] texture, BufferedImage textureImage) {
-    // vertex
-    //drawVertex(image, vertex);
-    // edge
-    //drawEdge(image, face, vertex);
-    // face
-    drawFace(image, face, vertex, normal, texture, textureImage);
+  public void rasterization() {
+//    drawVertex();
+//    drawEdge();
+    drawFace();
   }
 
-  public static void drawVertex(BufferedImage image, double[] vertex) {
+  public void drawVertex() {
     IntStream.range(0, vertex.length / 3).boxed()
         .sorted(Comparator.comparingDouble(i -> vertex[i * 3 + 2])).forEach(i -> {
       double x = vertex[i * 3];
       double y = vertex[i * 3 + 1];
       double z = vertex[i * 3 + 2];
       if (z < 0 || z > 1) throw new IllegalArgumentException();
-      image.setRGB((int) Math.round(x), (int) Math.round(y), (int) (z * 255) * 0x010101);
+      plot((int) Math.round(x), (int) Math.round(y), (int) (z * 255) * 0x010101);
     });
   }
 
-  public static void drawEdge(BufferedImage image, int[] face, double[] vertex) {
-    Graphics graphics = image.getGraphics();
+  public void plot(int x, int y, int rgb) {
+    imageRaster[y * imageWidth + x] = rgb;
+  }
+
+  public void drawLine(double x1, double y1, double x2, double y2, int rgb) {
+    // https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm modified for double coordinates
+    double dx = Math.abs(x2 - x1);
+    int sx = x1 < x2 ? 1 : -1;
+    double dy = Math.abs(y2 - y1);
+    int sy = y1 < y2 ? 1 : -1;
+    double error = dx - dy;
+    int x = (int) x1;
+    int y = (int) y1;
+    int x0 = (int) x2;
+    int y0 = (int) y2;
+    while (true) {
+      plot(x, y, rgb);
+      double e2 = 2 * error;
+      if (e2 >= -dy) {
+        if (x == x0) break;
+        error -= dy;
+        x += sx;
+      }
+      if (e2 <= dx) {
+        if (y == y0) break;
+        error += dx;
+        y += sy;
+      }
+    }
+  }
+
+  public void drawEdge() {
     for (int i = 0; i < face.length; i += 9) {
       int v0 = face[i] * 3;
       int v1 = face[i + 3] * 3;
@@ -75,12 +132,9 @@ public class Shader {
       double by = y2 - y0;
       double n = ax * by - ay * bx; // normal of the triangle
       if (n > 0) continue; // left
-      graphics.setColor(new Color((int) ((z0 + z1) * 127) * 0x010101));
-      graphics.drawLine((int) Math.round(x0), (int) Math.round(y0), (int) Math.round(x1), (int) Math.round(y1));
-      graphics.setColor(new Color((int) ((z1 + z2) * 127) * 0x010101));
-      graphics.drawLine((int) Math.round(x1), (int) Math.round(y1), (int) Math.round(x2), (int) Math.round(y2));
-      graphics.setColor(new Color((int) ((z2 + z0) * 127) * 0x010101));
-      graphics.drawLine((int) Math.round(x2), (int) Math.round(y2), (int) Math.round(x0), (int) Math.round(y0));
+      drawLine(x0, y0, x1, y1, (int) ((z0 + z1) * 127) * 0x010101);
+      drawLine(x1, y1, x2, y2, (int) ((z1 + z2) * 127) * 0x010101);
+      drawLine(x2, y2, x0, y0, (int) ((z2 + z0) * 127) * 0x010101);
     }
   }
 
@@ -100,11 +154,9 @@ public class Shader {
     return a * r[0] + b * r[1] + c * r[2];
   }
 
-  public static double[] barycentricValue(double[] a, int ia, double[] b, int ib, double[] c, int ic,
-      double[] r, int size) {
-    double[] d = new double[size];
-    for (int i = 0; i < size; i++) d[i] = a[ia++] * r[0] + b[ib++] * r[1] + c[ic++] * r[2];
-    return d;
+  public static void barycentricValue(double[] a, int ia, double[] b, int ib, double[] c, int ic,
+      double[] r, double[] d) {
+    for (int i = 0; i < d.length; i++) d[i] = a[ia++] * r[0] + b[ib++] * r[1] + c[ic++] * r[2];
   }
 
   public static double length(double[] vector, int i, int size) {
@@ -126,27 +178,17 @@ public class Shader {
     return a[ia] * b[ib] + a[ia + 1] * b[ib + 1] + a[ia + 2] * b[ib + 2];
   }
 
-  public static void drawFace(BufferedImage image, int[] face, double[] vertex, double[] normal,
-      double[] texture, BufferedImage textureImage) {
+  public void drawFace() {
     double[] light = {-5, 3, 5}; // DisplayStand
+    double[] barycentricNormal = new double[3];
     normalize(light);
     double ambient = 0.4;
     double diffuse = 0.6;
     double specular = 0.8;
     double shininess = 100;
-    int textureWidth = textureImage == null ? 0 : textureImage.getWidth();
-    int textureHeight = textureImage == null ? 0 : textureImage.getHeight();
-    if (texture == null) texture = new double[2];
 
-    int imageHeight = image.getHeight();
-    int imageWidth = image.getWidth();
-    double viewerZ = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
-    double[] viewer = {0, 0, viewerZ};
-    int imageHeight2 = imageHeight / 2;
-    int imageWidth2 = imageWidth / 2;
     int imageMaxY = imageHeight - 1;
     int imageMaxX = imageWidth - 1;
-    double[][] zbuffer = new double[imageHeight][imageWidth];
     for (int i = 0; i < face.length; i += 9) {
       // FIXME: make a method for the back-face culling boilerplate
       int v0 = face[i] * 3;
@@ -188,24 +230,21 @@ public class Shader {
       int maxY = Math.min((int) Math.ceil(Math.max(y0, Math.max(y1, y2))), imageMaxY);
       for (int y = minY; y <= maxY; y++) {
         for (int x = minX; x <= maxX; x++) {
+          int xy = y * imageWidth + x;
           if (!barycentric(x, y, x0, y0, x1, y1, x2, y2, r)) continue;
           double z = barycentricValue(z0, z1, z2, r);
-          if (zbuffer[y][x] > z) continue;
-          zbuffer[y][x] = z;
-          image.setRGB(x, y, (int) (z * 255) * 0x010101);
-          double[] n = barycentricValue(normal, n0, normal, n1, normal, n2, r, 3);
-          normalize(n);
-          double dotLN = Math.max(0, dotProduct(n, 0, light, 0));
+          if (zbuffer[xy] > z) continue;
+          zbuffer[xy] = z;
+          imageRaster[xy] = (int) (z * 255) * 0x010101;
+          barycentricValue(normal, n0, normal, n1, normal, n2, r, barycentricNormal);
+          normalize(barycentricNormal);
+          double dotLN = Math.max(0, dotProduct(barycentricNormal, 0, light, 0));
           double[] R = {
-              2 * dotLN * n[0] - light[0],
-              2 * dotLN * n[1] - light[1],
-              2 * dotLN * n[2] - light[2]
+              2 * dotLN * barycentricNormal[0] - light[0],
+              2 * dotLN * barycentricNormal[1] - light[1],
+              2 * dotLN * barycentricNormal[2] - light[2]
           };
           normalize(R);
-          viewer[0] = imageWidth2 - x;
-          viewer[1] = imageHeight2 + y;
-          viewer[2] = viewerZ;
-          normalize(viewer);
           int textureColor = 0xCC9999;
           if (textureHeight > 0) {
             double txy0 = barycentricValue(texture[t0], texture[t1], texture[t2], r);
@@ -213,9 +252,9 @@ public class Shader {
             //double[] txy = barycentricValue(texture, t0, texture, t1, texture, t2, r, 2);
             int tx = Math.min(Math.max(0, (int) (txy0 * textureWidth)), textureWidth - 1);
             int ty = Math.min(Math.max(0, (int) (txy1 * textureHeight)), textureHeight - 1);
-            textureColor = textureImage.getRGB(tx, textureHeight - 1 - ty);
+            textureColor = textureRaster[(textureHeight - 1 - ty) * textureWidth + tx];
           }
-          double dotRV = Math.max(0, dotProduct(R, 0, viewer, 0));
+          double dotRV = Math.max(0, dotProduct(R, 0, viewer, xy * 3));
           double v = ambient + diffuse * dotLN + specular * Math.pow(dotRV, shininess);
           int rcol = (textureColor >> 16 & 0xFF);
           int gcol = (textureColor >> 8 & 0xFF);
@@ -230,7 +269,7 @@ public class Shader {
             gcol *= v;
             bcol *= v;
           }
-          image.setRGB(x, y, rcol << 16 | gcol << 8 | bcol);
+          imageRaster[xy] = rcol << 16 | gcol << 8 | bcol;
         }
       }
     }
@@ -254,15 +293,26 @@ public class Shader {
     }
   }
 
-  public static void run(BufferedImage image, Obj obj, BufferedImage texture, double year) {
-    double[] vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
-    double[] normal = Arrays.copyOf(obj.normal, obj.normal.length);
+  public void cls() {
+    Arrays.fill(imageRaster, 0);
+    Arrays.fill(zbuffer, 0);
+  }
+
+  public int[] run(int[] textureRaster, int textureWidth, int textureHeight,
+      Obj obj, double year) {
+    this.textureRaster = textureRaster;
+    this.textureWidth = textureWidth;
+    this.textureHeight = textureHeight;
+    this.face = obj.face;
+    this.texture = obj.texture == null ? new double[2] : obj.texture;
+    this.vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
+    this.normal = Arrays.copyOf(obj.normal, obj.normal.length);
     double xyzmax = 0;
     for (int i = 0; i < vertex.length; i += 3) xyzmax = Math.max(xyzmax, length(vertex, i, 3));
     xyzmax *= 1.2;
     for (int i = 0; i < vertex.length; i++) vertex[i] /= xyzmax;
-    int w2 = image.getWidth() / 2;
-    int h2 = image.getHeight() / 2;
+    int w2 = imageWidth / 2;
+    int h2 = imageHeight / 2;
 
     rotate(vertex, year * 9, 1);
     rotate(vertex, -23.44 / 360, 0);
@@ -279,8 +329,8 @@ public class Shader {
       vertex[i * 3 + 1] = h2 - y * d; // left
       vertex[i * 3 + 2] = z / 2 + 0.5;
     };
-    rasterization(image, obj.face, vertex, normal, obj.texture, texture);
-
+    rasterization();
+    return imageRaster;
   }
 
 }
