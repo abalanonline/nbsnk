@@ -33,13 +33,14 @@ public class Shader {
    * Vertex coordinates are in screen units (left handed), no further transformation required.
    * Z from 0 (very) far to 1 near.
    */
-  public static void rasterization(BufferedImage image, int[] face, double[] vertex, double[] normal) {
+  public static void rasterization(BufferedImage image, int[] face, double[] vertex, double[] normal,
+      double[] texture, BufferedImage textureImage) {
     // vertex
     //drawVertex(image, vertex);
     // edge
     //drawEdge(image, face, vertex);
     // face
-    drawFace(image, face, vertex, normal);
+    drawFace(image, face, vertex, normal, texture, textureImage);
   }
 
   public static void drawVertex(BufferedImage image, double[] vertex) {
@@ -125,13 +126,17 @@ public class Shader {
     return a[ia] * b[ib] + a[ia + 1] * b[ib + 1] + a[ia + 2] * b[ib + 2];
   }
 
-  public static void drawFace(BufferedImage image, int[] face, double[] vertex, double[] normal) {
+  public static void drawFace(BufferedImage image, int[] face, double[] vertex, double[] normal,
+      double[] texture, BufferedImage textureImage) {
     double[] light = {-5, 3, 5}; // DisplayStand
     normalize(light);
-    double ambient = 0.2;
+    double ambient = 0.4;
     double diffuse = 0.6;
-    double specular = 0.4;
-    double shininess = 200;
+    double specular = 0.8;
+    double shininess = 100;
+    int textureWidth = textureImage == null ? 0 : textureImage.getWidth();
+    int textureHeight = textureImage == null ? 0 : textureImage.getHeight();
+    if (texture == null) texture = new double[2];
 
     int imageHeight = image.getHeight();
     int imageWidth = image.getWidth();
@@ -146,10 +151,20 @@ public class Shader {
       // FIXME: make a method for the back-face culling boilerplate
       int v0 = face[i] * 3;
       int n0 = face[i + 1] * 3;
+      int t0 = face[i + 2] * 2;
       int v1 = face[i + 3] * 3;
       int n1 = face[i + 4] * 3;
+      int t1 = face[i + 5] * 2;
       int v2 = face[i + 6] * 3;
       int n2 = face[i + 7] * 3;
+      int t2 = face[i + 8] * 2;
+//      double t0x = texture[t0];
+//      double t0y = texture[t0 + 1];
+//      double t1x = texture[t1];
+//      double t1y = texture[t1 + 1];
+//      double t2x = texture[t2];
+//      double t2y = texture[t2 + 1];
+
       double x0 = vertex[v0];
       double x1 = vertex[v1];
       double x2 = vertex[v2];
@@ -191,9 +206,31 @@ public class Shader {
           viewer[1] = imageHeight2 + y;
           viewer[2] = viewerZ;
           normalize(viewer);
+          int textureColor = 0xCC9999;
+          if (textureHeight > 0) {
+            double txy0 = barycentricValue(texture[t0], texture[t1], texture[t2], r);
+            double txy1 = barycentricValue(texture[t0 + 1], texture[t1 + 1], texture[t2 + 1], r);
+            //double[] txy = barycentricValue(texture, t0, texture, t1, texture, t2, r, 2);
+            int tx = Math.min(Math.max(0, (int) (txy0 * textureWidth)), textureWidth - 1);
+            int ty = Math.min(Math.max(0, (int) (txy1 * textureHeight)), textureHeight - 1);
+            textureColor = textureImage.getRGB(tx, textureHeight - 1 - ty);
+          }
           double dotRV = Math.max(0, dotProduct(R, 0, viewer, 0));
-          double v = Math.min(ambient + diffuse * dotLN + specular * Math.pow(dotRV, shininess), 1);
-          image.setRGB(x, y, (int) (v * 0xFF) * 0x010101);
+          double v = ambient + diffuse * dotLN + specular * Math.pow(dotRV, shininess);
+          int rcol = (textureColor >> 16 & 0xFF);
+          int gcol = (textureColor >> 8 & 0xFF);
+          int bcol = (textureColor & 0xFF);
+          if (v > 1) {
+            int vcol = (int) ((v - 1) * 0xFF);
+            rcol = Math.min(rcol + vcol, 0xFF);
+            gcol = Math.min(gcol + vcol, 0xFF);
+            bcol = Math.min(bcol + vcol, 0xFF);
+          } else {
+            rcol *= v;
+            gcol *= v;
+            bcol *= v;
+          }
+          image.setRGB(x, y, rcol << 16 | gcol << 8 | bcol);
         }
       }
     }
@@ -217,7 +254,7 @@ public class Shader {
     }
   }
 
-  public static void run(BufferedImage image, Obj obj, double year) {
+  public static void run(BufferedImage image, Obj obj, BufferedImage texture, double year) {
     double[] vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
     double[] normal = Arrays.copyOf(obj.normal, obj.normal.length);
     double xyzmax = 0;
@@ -242,7 +279,7 @@ public class Shader {
       vertex[i * 3 + 1] = h2 - y * d; // left
       vertex[i * 3 + 2] = z / 2 + 0.5;
     };
-    rasterization(image, obj.face, vertex, normal);
+    rasterization(image, obj.face, vertex, normal, obj.texture, texture);
 
   }
 

@@ -18,12 +18,20 @@
 package ab.shader;
 
 import ab.jnc3.Screen;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,13 +40,17 @@ class ShaderTest {
 
   boolean open;
 
+  @Disabled
   @Test
-  void test() throws InterruptedException, IOException {
-    open = true;
+  void testPhongTexture() throws IOException {
+    BufferedImage texture = null;
     Obj obj = Obj.load(getClass()
-        .getResourceAsStream("spot_triangulated.obj").readAllBytes());
-//        .getResourceAsStream("teapot.obj").readAllBytes());
 //        .getResourceAsStream("blender_cube.obj").readAllBytes());
+//        .getResourceAsStream("teapot.obj").readAllBytes());
+        .getResourceAsStream("spot_triangulated.obj").readAllBytes()); // 66 fps with texture
+    texture = ImageIO.read(getClass().getResourceAsStream("spot_texture.png"));
+
+//    Obj.flatNormal(obj);
     Obj.fixNormal(obj);
     Obj.verify(obj);
     Screen screen = new Screen();
@@ -51,15 +63,77 @@ class ShaderTest {
     BufferedImage doubleBufferedImage = new BufferedImage(
         screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
     Graphics graphics = doubleBufferedImage.createGraphics();
+    graphics.setColor(Color.DARK_GRAY);
+    FpsMeter fpsMeter = new FpsMeter();
+    open = true;
     while (open) {
       graphics.clearRect(0, 0, width, height);
-      Shader.run(doubleBufferedImage, obj, Instant.now().toEpochMilli() / 60_000.0);
+      Shader.run(doubleBufferedImage, obj, texture, Instant.now().toEpochMilli() / 60_000.0);
+      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
       screen.image.getRaster().setDataElements(0, 0, doubleBufferedImage.getRaster());
       screen.update();
-      Thread.sleep(10);
     }
   }
 
+  @Disabled
+  @Test
+  void testSphere() throws IOException {
+    open = true;
+    Obj obj = Obj.load(Files.readAllBytes(Paths.get("../assets/blender_uv_sphere.obj")));
+    BufferedImage texture = ImageIO.read(Files.newInputStream(Paths.get("../assets/photosphere.jpg")));
+    Obj.verify(obj);
+    Screen screen = new Screen();
+    screen.preferredSize = new Dimension(960, 540);
+    screen.image = new BufferedImage(960, 540, BufferedImage.TYPE_INT_RGB);
+    screen.keyListener = key -> { if (key.equals("Esc")) open = false; };
+
+    int width = screen.image.getWidth();
+    int height = screen.image.getHeight();
+    BufferedImage doubleBufferedImage = new BufferedImage(
+        screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
+    Graphics graphics = doubleBufferedImage.createGraphics();
+    graphics.setColor(Color.DARK_GRAY);
+    FpsMeter fpsMeter = new FpsMeter();
+    while (open) {
+      graphics.clearRect(0, 0, width, height);
+      Shader.run(doubleBufferedImage, obj, texture, Instant.now().toEpochMilli() / 60_000.0);
+      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
+      screen.image.getRaster().setDataElements(0, 0, doubleBufferedImage.getRaster());
+      screen.update();
+    }
+  }
+
+  @Disabled
+  @Test
+  void polyhedron() throws IOException {
+    Obj obj = Obj.load(Files.readAllBytes(Paths.get("../assets/polyhedron3.obj")));
+//    obj = Obj.load(Files.readAllBytes(Paths.get("../assets/hornet_sphere.obj")));
+    Obj.flatNormal(obj);
+    Obj.fixNormal(obj);
+    Obj.verify(obj);
+    Screen screen = new Screen();
+    screen.keyListener = key -> { if (key.equals("Esc")) open = false; };
+
+    int width = screen.image.getWidth();
+    int height = screen.image.getHeight();
+    BufferedImage doubleBufferedImage = new BufferedImage(
+        screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
+    Graphics graphics = doubleBufferedImage.createGraphics();
+    open = true;
+    while (open) {
+      graphics.clearRect(0, 0, width, height);
+      Shader.run(doubleBufferedImage, obj, null, Instant.now().toEpochMilli() / 60_000.0);
+      screen.image.getRaster().setDataElements(0, 0, doubleBufferedImage.getRaster());
+      screen.update();
+    }
+  }
+
+  @Disabled
+  @Test
+  void makeSphere() {
+  }
+
+  @Disabled
   @Test
   void barycentric() throws InterruptedException {
     open = true;

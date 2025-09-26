@@ -82,6 +82,16 @@ public class Obj {
     return obj;
   }
 
+  public static byte[] save(Obj obj) {
+    StringBuilder s = new StringBuilder();
+    for (int v = 0; v < obj.vertex.length / 3; v++) s.append(String.format("v %f %f %f\n",
+        obj.vertex[v * 3], obj.vertex[v * 3 + 1], obj.vertex[v * 3 + 2]));
+    for (int f = 0; f < obj.face.length / 9; f++) {
+      s.append(String.format("f %d %d %d\n", obj.face[f * 9] + 1, obj.face[f * 9 + 3] + 1, obj.face[f * 9 + 6] + 1));
+    }
+    return s.toString().getBytes();
+  }
+
   private static double angle(double[] vertex, int a, int o, int b) {
     double ox = vertex[o++];
     double oy = vertex[o++];
@@ -157,6 +167,19 @@ public class Obj {
       vertexNormal[i * 3 + 2] /= m;
     }
     obj.normal = vertexNormal;
+  }
+
+  @Deprecated
+  public static void normalToTexture(Obj obj) {
+    // this is wrong
+    int fsize = obj.face.length / 3;
+    obj.texture = new double[fsize * 2];
+    for (int f = 0; f < fsize; f++) {
+      int n = obj.face[f * 3 + 1] * 3;
+      obj.texture[f * 2] = Math.atan2(obj.normal[n], obj.normal[n + 2]) / Math.PI / 2 + 0.5;
+      obj.texture[f * 2 + 1] = Math.asin(obj.normal[n + 1]) / Math.PI + 0.5;
+      obj.face[f * 3 + 2] = f;
+    }
   }
 
   public static void fixNormal(Obj obj) {
