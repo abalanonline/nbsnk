@@ -96,18 +96,33 @@ class ShaderTest {
         for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = texture.getRGB(x, y);
       }
     }
-    screen.keyListener = key -> { if (key.equals("Esc")) open = false; };
+    Obj flat = obj.clone();
+    Obj.flatNormal(flat);
+    Obj[] o1 = {obj};
     int width = screen.image.getWidth();
     int height = screen.image.getHeight();
+    Shader shader = new Shader(width, height);
+    screen.keyListener = key -> {
+      switch (key) {
+        case "Esc": open = false; break;
+        case "1": shader.enableDimension = 0; break;
+        case "2": shader.enableDimension = 1; break;
+        case "3": shader.enableDimension = 2; break;
+        case "4": shader.enableIllumination = 0; o1[0] = obj; break;
+        case "5": shader.enableIllumination = 1; o1[0] = flat; break;
+        case "6": shader.enableIllumination = 2; o1[0] = obj; break;
+        case "7": shader.enableIllumination = 3; o1[0] = obj; break;
+        case "=": shader.enableTexture = !shader.enableTexture; break;
+      }
+    };
     Graphics graphics = screen.image.createGraphics();
     graphics.setColor(Color.DARK_GRAY);
-    Shader shader = new Shader(width, height);
     open = true;
     FpsMeter fpsMeter = new FpsMeter();
     while (open) {
       shader.cls();
       int[] buffer = shader.run(textureRaster, textureWidth, textureHeight,
-          obj, Instant.now().toEpochMilli() / 60_000.0);
+          o1[0], Instant.now().toEpochMilli() / 60_000.0);
       screen.image.getRaster().setDataElements(0, 0, width, height, buffer);
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
       screen.update();

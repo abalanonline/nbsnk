@@ -19,6 +19,7 @@ package ab.shader;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +30,18 @@ public class Obj {
   public double[] texture; // 0 <= (x, y) <= 1, Y-up, as in .obj
   public BufferedImage image;
   public String id;
+
+  @Override
+  protected Obj clone() {
+    Obj obj = new Obj();
+    obj.face = Arrays.copyOf(face, face.length);
+    obj.vertex = Arrays.copyOf(vertex, vertex.length);
+    obj.normal = Arrays.copyOf(normal, normal.length);
+    obj.texture = Arrays.copyOf(texture, texture.length);
+    obj.image = image;
+    obj.id = id;
+    return obj;
+  }
 
   public static final Obj TETRAHEDRON = createTetrahedron();
   private static Obj createTetrahedron() {

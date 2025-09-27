@@ -25,6 +25,11 @@ public class Shader {
   public static final double FOCAL_LENGTH = 50;
   public static final double FILM_HEIGHT = 24;
 
+  public boolean enableZbuffer = true;
+  public boolean enableTexture = true;
+  public int enableIllumination = 3; // 0 None, 1 Lambert, 2 Gouraud, 3 Phong
+  public int enableDimension = 2; // 0 point cloud, 1 wire-frame, 2 polygon mesh
+
   public final int[] imageRaster;
   public final int imageWidth;
   public final int imageHeight;
@@ -34,7 +39,7 @@ public class Shader {
   public int[] textureRaster;
   public int textureWidth;
   public int textureHeight;
-  public int textureColor = 0xCC9999;
+  public int textureColor = 0xCCCCCC;
 
   public double ambient = 0.4;
   public double diffuse = 0.6;
@@ -64,7 +69,6 @@ public class Shader {
   public double v2y;
   public double v2z;
   public final double[] gouraudIllumination = new double[3];
-  public boolean gouraudIlluminationCreated;
   public final double[] barycentricCoordinates = new double[4];
   public int imageRasterXY;
 
@@ -98,14 +102,19 @@ public class Shader {
    * Z from 0 (very) far to 1 near.
    */
   public void rasterization() {
-    visibleFaceMethod = this::drawVertex;
-    visibleFaceMethod = this::drawEdge;
-    visibleFaceMethod = this::drawFace;
-    visiblePixelMethod = this::pixelZbuffer;
-    visiblePixelMethod = this::getTextureColor;
-    visiblePixelMethod = this::lambertTexture;
-    visiblePixelMethod = this::gouraudShading;
-    visiblePixelMethod = this::phongShading;
+    switch (enableDimension) {
+      case 1: visibleFaceMethod = this::drawEdge; break;
+      case 2: visibleFaceMethod = this::drawFace; break;
+      default: visibleFaceMethod = this::drawVertex;
+    }
+    switch (enableIllumination) {
+      case 1: visiblePixelMethod = this::lambertTexture; break;
+      case 2: visiblePixelMethod = this::gouraudShading; break;
+      case 3: visiblePixelMethod = this::phongShading; break;
+      default: visiblePixelMethod = this::pixelZbuffer;
+    }
+    if (!enableTexture) textureHeight = 0;
+    //visiblePixelMethod = this::getTextureColor;
     iterateVisibleFace();
   }
 
@@ -133,24 +142,14 @@ public class Shader {
   public int gouraudShading() {
     double illumination = barycentricValue(
         gouraudIllumination[0], gouraudIllumination[1], gouraudIllumination[2], barycentricCoordinates);
-    gouraudIlluminationCreated = false;
     int textureColor = getTextureColor();
     return colorBrightness(textureColor, illumination);
   }
 
   public int lambertTexture() {
-    // flat shading requires face normals propagated in obj
-    final double[] normal = new double[3];
-    for (int i = 0; i < 3; i++) {
-      normal[i] += this.normal[fn0 + i];
-      normal[i] += this.normal[fn1 + i];
-      normal[i] += this.normal[fn2 + i];
-    }
-    normalize(normal);
-    double dotLN = Math.max(0, dotProduct(normal, 0, light, 0));
+    double illumination = gouraudIllumination[0];
     int textureColor = getTextureColor();
-    double v = ambient + diffuse * dotLN;
-    return colorBrightness(textureColor, v);
+    return colorBrightness(textureColor, illumination);
   }
 
   /**
@@ -302,8 +301,11 @@ public class Shader {
     return textureRaster[(textureHeight - 1 - ty) * textureWidth + tx];
   }
 
+  public void createLambertIllumination() {
+    gouraudIllumination[0] = phongReflection(light, 0, normal, fn0, new double[3], 0);
+  }
+
   public void createGouraudIllumination() {
-    if (gouraudIlluminationCreated) return;
     final double viewerZ = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
     int[] vi = {fn0, fn1, fn2};
     double[] xy = {v0x, v0y, v1x, v1y, v2x, v2y};
@@ -316,7 +318,6 @@ public class Shader {
       double v = phongReflection(light, 0, normal, vi[i], viewer, 0);
       gouraudIllumination[i] = v;
     }
-    gouraudIlluminationCreated = true;
   }
 
   public void drawFace() {
@@ -325,7 +326,7 @@ public class Shader {
     int maxX = Math.min((int) Math.ceil(Math.max(v0x, Math.max(v1x, v2x))), imageWidth - 1);
     int minY = Math.max((int) Math.floor(Math.min(v0y, Math.min(v1y, v2y))), 0);
     int maxY = Math.min((int) Math.ceil(Math.max(v0y, Math.max(v1y, v2y))), imageHeight - 1);
-    boolean createGouraudIllumination = true;
+    boolean createIllumination = true;
 
     for (int y = minY; y <= maxY; y++) {
       for (int x = minX; x <= maxX; x++) {
@@ -334,9 +335,10 @@ public class Shader {
         double z = barycentricValue(v0z, v1z, v2z, barycentricCoordinates);
         if (zbuffer[imageRasterXY] > z) continue;
         zbuffer[imageRasterXY] = z;
-        if (createGouraudIllumination) {
-          createGouraudIllumination();
-          createGouraudIllumination = false;
+        if (createIllumination) {
+          if (enableIllumination == 1) createLambertIllumination();
+          if (enableIllumination == 2) createGouraudIllumination();
+          createIllumination = false;
         }
         imageRaster[imageRasterXY] = visiblePixelMethod.getAsInt();
       }
