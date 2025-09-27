@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package ab.shader;
+package ab.nbsnk;
 
 import java.util.Arrays;
 import java.util.function.IntSupplier;
@@ -214,6 +214,8 @@ public class Shader {
       }
     }
   }
+
+  // Nbsnk. made in NZ
 
   public void iterateVisibleFace() {
     for (int i = 0; i < face.length;) {

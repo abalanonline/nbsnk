@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package ab.shader;
+package ab.nbsnk;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
