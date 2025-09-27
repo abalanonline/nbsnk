@@ -199,7 +199,7 @@ public class DisplayStand implements AutoCloseable {
       faces[i++] = obj.face[j++]; // v
       faces[i] = obj.face[j++]; // n
       if (useNormal) i++;
-      faces[i++] = Math.max(0, obj.face[j++]); // t
+      faces[i++] = obj.face[j++]; // t
     }
 
     // vertex

@@ -27,6 +27,7 @@ public class Shader {
 
   public boolean enableZbuffer = true;
   public boolean enableTexture = true;
+  public enum Illumination { NONE, LAMBERT, GOURAUD, PHONG }
   public int enableIllumination = 3; // 0 None, 1 Lambert, 2 Gouraud, 3 Phong
   public int enableDimension = 2; // 0 point cloud, 1 wire-frame, 2 polygon mesh
 
