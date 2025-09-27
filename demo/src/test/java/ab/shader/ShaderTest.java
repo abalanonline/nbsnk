@@ -37,6 +37,53 @@ class ShaderTest {
 
   boolean open;
 
+  @Disabled
+  @Test
+  void testPhongTexture() throws IOException {
+    // Spot performance:
+    // 66 fps with texture
+    // 180 fps after replacing BufferedImage with int array
+    // 180 fps 12MiB pre-calculated normalized viewer angle
+    BufferedImage texture = null;
+    Obj obj = Obj.load(getClass()
+//        .getResourceAsStream("blender_cube.obj").readAllBytes());
+//        .getResourceAsStream("teapot.obj").readAllBytes());
+        .getResourceAsStream("spot_triangulated.obj").readAllBytes()); // 66 fps with texture
+    texture = ImageIO.read(getClass().getResourceAsStream("spot_texture.png"));
+
+//    Obj.flatNormal(obj);
+    Obj.fixNormal(obj);
+    Obj.verify(obj);
+    Screen screen = new Screen();
+    screen.preferredSize = new Dimension(960, 540);
+    screen.image = new BufferedImage(960, 540, BufferedImage.TYPE_INT_RGB);
+    runShader(screen, obj, texture);
+  }
+
+  @Disabled
+  @Test
+  void testSphere() throws IOException {
+    Obj obj = Obj.load(Files.readAllBytes(Paths.get("../assets/blender_uv_sphere.obj")));
+    BufferedImage texture = ImageIO.read(Files.newInputStream(Paths.get("../assets/photosphere.jpg")));
+    Obj.interpolateNormal(obj);
+    Screen screen = new Screen();
+    screen.preferredSize = new Dimension(960, 540);
+    screen.image = new BufferedImage(960, 540, BufferedImage.TYPE_INT_RGB);
+    runShader(screen, obj, texture);
+  }
+
+  @Disabled
+  @Test
+  void polyhedron() throws IOException {
+    Obj obj = Obj.load(Files.readAllBytes(Paths.get("../assets/polyhedron3.obj")));
+//    obj = Obj.load(Files.readAllBytes(Paths.get("../assets/hornet_sphere.obj")));
+    Obj.flatNormal(obj);
+    Obj.fixNormal(obj);
+    Obj.verify(obj);
+    Screen screen = new Screen();
+    runShader(screen, obj, null);
+  }
+
   void runShader(Screen screen, Obj obj, BufferedImage texture) {
     int[] textureRaster = null;
     int textureWidth = 0;
@@ -65,58 +112,6 @@ class ShaderTest {
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
       screen.update();
     }
-  }
-
-  @Disabled
-  @Test
-  void testPhongTexture() throws IOException {
-    // Spot performance:
-    // 66 fps with texture
-    // 180 fps after replacing BufferedImage with int array
-    // 200 fps 12MiB pre-calculated normalized viewer angle
-    BufferedImage texture = null;
-    Obj obj = Obj.load(getClass()
-//        .getResourceAsStream("blender_cube.obj").readAllBytes());
-//        .getResourceAsStream("teapot.obj").readAllBytes());
-        .getResourceAsStream("spot_triangulated.obj").readAllBytes()); // 66 fps with texture
-    texture = ImageIO.read(getClass().getResourceAsStream("spot_texture.png"));
-
-//    Obj.flatNormal(obj);
-    Obj.fixNormal(obj);
-    Obj.verify(obj);
-    Screen screen = new Screen();
-    screen.preferredSize = new Dimension(960, 540);
-    screen.image = new BufferedImage(960, 540, BufferedImage.TYPE_INT_RGB);
-    runShader(screen, obj, texture);
-  }
-
-  @Disabled
-  @Test
-  void testSphere() throws IOException {
-    Obj obj = Obj.load(Files.readAllBytes(Paths.get("../assets/blender_uv_sphere.obj")));
-    BufferedImage texture = ImageIO.read(Files.newInputStream(Paths.get("../assets/photosphere.jpg")));
-    Obj.verify(obj);
-    Screen screen = new Screen();
-    screen.preferredSize = new Dimension(960, 540);
-    screen.image = new BufferedImage(960, 540, BufferedImage.TYPE_INT_RGB);
-    runShader(screen, obj, texture);
-  }
-
-  @Disabled
-  @Test
-  void polyhedron() throws IOException {
-    Obj obj = Obj.load(Files.readAllBytes(Paths.get("../assets/polyhedron3.obj")));
-//    obj = Obj.load(Files.readAllBytes(Paths.get("../assets/hornet_sphere.obj")));
-    Obj.flatNormal(obj);
-    Obj.fixNormal(obj);
-    Obj.verify(obj);
-    Screen screen = new Screen();
-    runShader(screen, obj, null);
-  }
-
-  @Disabled
-  @Test
-  void makeSphere() {
   }
 
   @Disabled
