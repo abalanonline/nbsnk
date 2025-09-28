@@ -25,6 +25,8 @@ public interface Engine3d extends AutoCloseable {
    */
   Engine3d open(BufferedImage image);
 
+  void background(BufferedImage image);
+
   Shape shape(Obj obj);
 
   void update();

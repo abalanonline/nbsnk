@@ -24,8 +24,10 @@ import javafx.scene.Node;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.Scene;
 import javafx.scene.SceneAntialiasing;
+import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
+import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
@@ -47,6 +49,7 @@ public class EngineFx implements Engine3d {
     public static class App extends Application {
       public static int imageWidth;
       public static int imageHeight;
+      public static Scene scene;
       public static Group root;
       public static WritableImage writableImage;
       public static BlockingQueue<Object> io = new SynchronousQueue<>();
@@ -54,7 +57,7 @@ public class EngineFx implements Engine3d {
       @Override
       public void start(Stage primaryStage) {
         root = new Group();
-        Scene scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
+        scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
         scene.setCamera(new PerspectiveCamera(true));
         //stage.setScene(scene);
         //stage.show(); // do not open a window
@@ -143,6 +146,18 @@ public class EngineFx implements Engine3d {
       JavaFx.App.io.take();
     } catch (InterruptedException ignore) {}
     return this;
+  }
+
+  @Override
+  public void background(BufferedImage image) {
+    int width = image.getWidth();
+    int height = image.getHeight();
+    WritableImage writableImage = new WritableImage(width, height);
+    int[] data = new int[width * height];
+    image.getRaster().getDataElements(0, 0, width, height, data);
+    for (int i = 0; i < data.length; i++) data[i] |= 0xFF000000; // opacity
+    writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
+    JavaFx.App.scene.setFill(new ImagePattern(writableImage));
   }
 
   @Override

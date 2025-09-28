@@ -20,6 +20,7 @@ package ab.nbsnk;
 import ab.jnc3.Screen;
 
 import java.awt.Graphics;
+import java.awt.image.BufferedImage;
 import java.time.Instant;
 
 public class Sketch2 {
@@ -66,12 +67,29 @@ public class Sketch2 {
       "f 2/13/5 1/1/5 3/4/5 4/5/5\n" +
       "f 6/11/6 5/10/6 1/1/6 2/13/6\n").getBytes());
 
+  public static void renderNoise(BufferedImage image) {
+    int w = image.getWidth();
+    int h = image.getHeight();
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        int i = Math.max(0, 0x7F - x / 5 - y);
+        int r = (int) (0x1F * (Math.sin((x + y) / 40.0) + 1));
+        int g = (int) (0x1F * (Math.sin((x - y) / 40.0) + 1));
+        int b = 0x3F - r;
+        image.setRGB(x, y, (r << 16 | g << 8 | b | 0x404040) + i * 0x010101);
+      }
+    }
+
+  }
+
   public static void main(String[] args) {
     Screen screen = new Screen();
 //    screen.image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
 //    screen.preferredSize = new Dimension(1920, 1080);
-    boolean[] open = {true};
+    BufferedImage background = new BufferedImage(screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
+    renderNoise(background);
     try (Engine3d engine3d = new EngineFx().open(screen.image)) {
+      engine3d.background(background);
       Engine3d.Shape c0 = engine3d.shape(cube);
       c0.translation(-4, 0, -20);
       c0.rotation(10);
@@ -88,6 +106,7 @@ public class Sketch2 {
 
       Graphics graphics = screen.image.createGraphics();
       graphics.setColor(java.awt.Color.DARK_GRAY);
+      boolean[] open = {true};
       screen.keyListener = key -> {
         if (key.equals("Esc")) open[0] = false;
       };
