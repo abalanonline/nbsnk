@@ -29,6 +29,7 @@ import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
+import javafx.scene.shape.Sphere;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import javafx.stage.Stage;
@@ -100,8 +101,56 @@ public class SceneThumbnailSketch {
       MeshView meshView = new MeshView();
       meshView.setMesh(mesh);
       meshView.setMaterial(material);
-      meshView.setTranslateZ(10);
-      Group root = new Group(meshView);
+      meshView.setTranslateZ(-20);
+
+      Sphere sphere = new Sphere();
+      Group g1 = new Group();
+      g1.getChildren().add(sphere);
+      g1.setTranslateZ(20);
+      g1.setTranslateX(2);
+      Sphere sphere2 = new Sphere();
+      Group g2 = new Group();
+      g2.getChildren().add(sphere2);
+      g2.setTranslateZ(20);
+      g2.setTranslateX(6);
+      g2.setTranslateY(-5);
+
+      MeshView m0 = new MeshView();
+      m0.setMesh(mesh);
+      m0.setMaterial(material);
+      m0.setTranslateZ(10);
+      m0.setTranslateX(-2.5);
+      m0.setTranslateY(-1.5);
+
+      MeshView m1 = new MeshView();
+      m1.setMesh(mesh);
+      m1.setMaterial(material);
+      m1.setTranslateZ(10);
+      m1.setTranslateX(-2.5);
+      m1.setTranslateY(1.5);
+      m1.setRotate(20);
+
+      MeshView mg0 = new MeshView();
+      mg0.setMesh(mesh);
+      mg0.setMaterial(material);
+      mg0.setTranslateY(-1.2);
+
+      MeshView mg1 = new MeshView();
+      mg1.setMesh(mesh);
+      mg1.setMaterial(material);
+      mg1.setTranslateY(1.2);
+
+//      Group g2c = new Group();
+      Group g2c = new Group(mg0, mg1);
+      g2c.setTranslateZ(20);
+      g2c.setTranslateX(5);
+      g2c.setRotate(-10);
+      g2c.setScaleX(0.5);
+
+//      meshView.setTranslateX(10);
+//      meshView.setTranslateY(10);
+      Group root = new Group(meshView, g1, g2, g2c);
+      root.getChildren().addAll(m0, m1);
 
       scene = new Scene(root, width, height, true, SceneAntialiasing.DISABLED);
       scene.setFill(Color.BLACK);
@@ -204,6 +253,9 @@ public class SceneThumbnailSketch {
         scene3d.update(screen.image);
         graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
         screen.update();
+        try {
+          Thread.sleep(40);
+        } catch (InterruptedException ignore) {}
       }
     }
   }
