@@ -25,6 +25,7 @@ class Sketch2Test {
 
   @Test
   void main() {
+    double v = Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360;
     Sketch2.main(new String[0]);
   }
 }

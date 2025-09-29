@@ -19,6 +19,9 @@ package ab.nbsnk;
 
 import java.awt.image.BufferedImage;
 
+/**
+ * Conventions: right-handed system, Y up, distances in meters, angles in turns [0,1).
+ */
 public interface Engine3d extends AutoCloseable {
   /**
    * Starts the engine using image for rendering.
@@ -38,6 +41,9 @@ public interface Engine3d extends AutoCloseable {
 
     void translation(double x, double y, double z);
 
+    /**
+     * @param z an angle, in turns [0,1).
+     */
     void rotation(double z);
 
     void connect(Shape shape);

@@ -31,11 +31,11 @@ public class Shader {
   public int enableIllumination = 3; // 0 None, 1 Lambert, 2 Gouraud, 3 Phong
   public int enableDimension = 2; // 0 point cloud, 1 wire-frame, 2 polygon mesh
 
-  public final int[] imageRaster;
+  public int[] imageRaster;
   public final int imageWidth;
-  public final int imageHeight;
+  public final int imageHeight; // FIXME: 2025-09-29 remove finals everywhere
   public final double[] zbuffer;
-  public final double[] light;
+  public final double[] light = {-1, 0, 0}; // FIXME: 2025-09-30 light is a point, not a vector
   public final double[] viewer;
   public int[] textureRaster;
   public int textureWidth;
@@ -81,7 +81,6 @@ public class Shader {
     this.imageWidth = imageWidth;
     this.imageHeight = imageHeight;
     this.zbuffer = new double[imageWidth * imageHeight];
-    this.light = new double[3];
     this.viewer = new double[imageWidth * imageHeight * 3];
     double[] v = new double[3];
     final double viewerZ = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
@@ -349,7 +348,7 @@ public class Shader {
   }
 
   /**
-   * In place rotation, angle 0-1, axis 0x,1y,2z
+   * In place rotation, angle in turns 0-1, axis 0x,1y,2z
    */
   public static void rotate(double[] vertex, double angle, int axis) {
     // TODO: do not optimize rotations until phong texture fully optimized
@@ -369,6 +368,34 @@ public class Shader {
   public void cls() {
     Arrays.fill(imageRaster, 0);
     Arrays.fill(zbuffer, 0);
+  }
+
+  public void add(Obj obj, double[] transformation) {
+    // TODO: 2025-09-30 review this method, it's a mess
+    this.face = obj.face;
+    this.texture = obj.texture == null ? new double[2] : obj.texture;
+    this.vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
+    this.normal = Arrays.copyOf(obj.normal, obj.normal.length);
+    rotate(vertex, transformation[3], 2);
+    rotate(normal, transformation[3], 2);
+    int w2 = imageWidth / 2;
+    int h2 = imageHeight / 2;
+    for (int i = 0; i < vertex.length / 3; i++) {
+      double x = vertex[i * 3] + transformation[0];
+      double y = vertex[i * 3 + 1] + transformation[1];
+      double z = vertex[i * 3 + 2] + transformation[2];
+      double d = (FOCAL_LENGTH / (FILM_HEIGHT / 2)) * h2 / -z;
+      //d/=2;
+      vertex[i * 3] = w2 + x * d;
+      // FIXME: 2025-09-29 get rid of left completely
+      vertex[i * 3 + 1] = h2 - y * d; // left
+      vertex[i * 3 + 2] = z / 1000 + 500;
+//      double d = h2 * 5 / (5 - z);
+//      vertex[i * 3] = w2 + x * d;
+//      vertex[i * 3 + 1] = h2 - y * d; // left
+//      vertex[i * 3 + 2] = z / 2 + 0.5;
+    };
+    rasterization();
   }
 
   public int[] run(int[] textureRaster, int textureWidth, int textureHeight,
@@ -403,6 +430,7 @@ public class Shader {
       double z = vertex[i * 3 + 2];
       double d = h2 * 5 / (5 - z);
       vertex[i * 3] = w2 + x * d;
+      // FIXME: 2025-09-29 get rid of left completely
       vertex[i * 3 + 1] = h2 - y * d; // left
       vertex[i * 3 + 2] = z / 2 + 0.5;
     };

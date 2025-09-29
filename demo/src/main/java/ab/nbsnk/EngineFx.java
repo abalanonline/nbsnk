@@ -22,11 +22,13 @@ import javafx.application.Platform;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.PerspectiveCamera;
+import javafx.scene.PointLight;
 import javafx.scene.Scene;
 import javafx.scene.SceneAntialiasing;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
+import javafx.scene.paint.Color;
 import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
@@ -57,18 +59,25 @@ public class EngineFx implements Engine3d {
       @Override
       public void start(Stage primaryStage) {
         root = new Group();
+        PointLight light = new PointLight(Color.WHITE);
+        light.setTranslateX(-10000); // FIXME: 2025-09-30 remove this test light
+        light.setTranslateY(0);
+        light.setTranslateZ(0);
+        root.getChildren().add(light);
         scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
-        scene.setCamera(new PerspectiveCamera(true));
+        PerspectiveCamera camera = new PerspectiveCamera(true);
+        camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
+        scene.setCamera(camera);
         //stage.setScene(scene);
         //stage.show(); // do not open a window
-        try {
-          io.put(this);
-          while (true) {
-            io.take();
+        while (true) {
+          try {
+            io.put(this); // ready
+            io.take(); // wait for request
             writableImage = scene.snapshot(writableImage);
-            io.put(this);
+          } catch (InterruptedException ignore) {
+            break;
           }
-        } catch (InterruptedException ignore) {
         }
       }
 
@@ -78,11 +87,11 @@ public class EngineFx implements Engine3d {
     }
   }
 
-  private static class ShapeFx implements Engine3d.Shape {
+  private static class ShapeFx implements Shape {
     private final Node node;
     private Group group;
 
-    public ShapeFx(Node node) {
+    private ShapeFx(Node node) {
       this.node = node;
       this.group = JavaFx.App.root;
       this.group.getChildren().add(this.node);
@@ -97,7 +106,7 @@ public class EngineFx implements Engine3d {
 
     @Override
     public void rotation(double z) {
-      node.setRotate(-z);
+      node.setRotate(-z * 360);
     }
 
     @Override
@@ -133,7 +142,7 @@ public class EngineFx implements Engine3d {
   }
 
   @Override
-  public Engine3d open(BufferedImage image) {
+  public EngineFx open(BufferedImage image) {
     System.setProperty("prism.forceGPU", "true");
     this.image = image;
     this.imageWidth = image.getWidth();

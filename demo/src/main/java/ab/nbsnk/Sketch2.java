@@ -19,6 +19,7 @@ package ab.nbsnk;
 
 import ab.jnc3.Screen;
 
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -88,39 +89,47 @@ public class Sketch2 {
 //    screen.preferredSize = new Dimension(1920, 1080);
     BufferedImage background = new BufferedImage(screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
     renderNoise(background);
-    try (Engine3d engine3d = new EngineFx().open(screen.image)) {
-      engine3d.background(background);
-      Engine3d.Shape c0 = engine3d.shape(cube);
-      c0.translation(-4, 0, -20);
-      c0.rotation(10);
+//    Engine3d engine3d = new EngineFx().open(screen.image);
+    Engine3d engine3d = new EngineNbs().open(screen.image);
+    engine3d.background(background);
+    Engine3d.Shape c0 = engine3d.shape(cube);
+    c0.translation(-4, 0, -20);
+    c0.rotation(10 / 360.0);
+    Engine3d.Shape gFail = engine3d.shape(null);
+    try {
+      gFail.connect(c0);
+      gFail = null;
+    } catch (Exception ignore) {}
+    if (gFail == null) throw new IllegalStateException("connected to obj");
 
-      Engine3d.Shape g0 = engine3d.shape(null);
-      g0.translation(4, 0, -20);
-      Engine3d.Shape c1 = engine3d.shape(cube);
-      c1.translation(0, 1.5, 0);
-      c1.connect(g0);
-      Engine3d.Shape c2 = engine3d.shape(cube);
-      c2.translation(0, -1.5, 0);
-      c2.connect(g0);
-      g0.rotation(10);
+    Engine3d.Shape g0 = engine3d.shape(null);
+    g0.translation(4, 0, -20);
+    Engine3d.Shape c1 = engine3d.shape(cube);
+    c1.translation(0, 1.5, 0);
+    c1.connect(g0);
+    Engine3d.Shape c2 = engine3d.shape(cube);
+    c2.translation(0, -1.5, 0);
+    c2.connect(g0);
+    g0.rotation(10 / 360.0);
 
-      Graphics graphics = screen.image.createGraphics();
-      graphics.setColor(java.awt.Color.DARK_GRAY);
-      boolean[] open = {true};
-      screen.keyListener = key -> {
-        if (key.equals("Esc")) open[0] = false;
-      };
-      FpsMeter fpsMeter = new FpsMeter();
-      while (open[0]) {
-        long m = Instant.now().toEpochMilli();
-        g0.rotation(m % 3600 / 10.0);
-        c0.translation(-4, Math.sin(m % 10000 / 5000.0 * Math.PI), -20);
-        engine3d.update();
-        graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
-        screen.update();
-        try { Thread.sleep(40); } catch (InterruptedException ignore) {}
-      }
+    Graphics graphics = screen.image.createGraphics();
+    graphics.setColor(java.awt.Color.DARK_GRAY);
+    boolean[] open = {true};
+    screen.keyListener = key -> {
+      if (key.equals("Esc")) open[0] = false;
+    };
+    FpsMeter fpsMeter = new FpsMeter();
+    while (open[0]) {
+      long m = Instant.now().toEpochMilli();
+      g0.rotation(m % 3600 / 10.0 / 360.0);
+      c0.translation(-4, Math.sin(m % 10000 / 5000.0 * Math.PI), -20);
+      engine3d.update();
+      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
+      screen.update();
+      try { Thread.sleep(20); } catch (InterruptedException ignore) {}
     }
+    engine3d.close();
+    screen.close();
   }
 
 }
