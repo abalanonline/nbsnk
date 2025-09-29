@@ -77,7 +77,7 @@ public class Sketch2 {
         int r = (int) (0x1F * (Math.sin((x + y) / 40.0) + 1));
         int g = (int) (0x1F * (Math.sin((x - y) / 40.0) + 1));
         int b = 0x3F - r;
-        image.setRGB(x, y, (r << 16 | g << 8 | b | 0x404040) + i * 0x010101);
+        image.setRGB(x, y, (r << 16 | g << 8 | b | 0xFF404040) + i * 0x010101);
       }
     }
 
@@ -87,10 +87,13 @@ public class Sketch2 {
     Screen screen = new Screen();
 //    screen.image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
 //    screen.preferredSize = new Dimension(1920, 1080);
+    screen.image = new BufferedImage(640, 360, BufferedImage.TYPE_INT_RGB);
+    screen.preferredSize = new Dimension(640, 360);
     BufferedImage background = new BufferedImage(screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
     renderNoise(background);
 //    Engine3d engine3d = new EngineFx().open(screen.image);
-    Engine3d engine3d = new EngineNbs().open(screen.image);
+//    Engine3d engine3d = new EngineNbs().open(screen.image);
+    Engine3d engine3d = new EngineDual().open(screen.image);
     engine3d.background(background);
     Engine3d.Shape c0 = engine3d.shape(cube);
     c0.translation(-4, 0, -20);
