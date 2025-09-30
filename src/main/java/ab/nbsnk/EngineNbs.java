@@ -17,6 +17,8 @@
 
 package ab.nbsnk;
 
+import Jama.Matrix;
+
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -98,13 +100,23 @@ public class EngineNbs implements Engine3d {
     return new ShapeNbs(obj, root);
   }
 
-  private void dfs(Set<ShapeNbs> shapes, double[] transformation) {
+  private void dfs(Set<ShapeNbs> shapes, Matrix tm) {
     for (ShapeNbs shape : shapes) {
-      double[] t = Arrays.copyOf(transformation, transformation.length);
-      t[0] += shape.tx;
-      t[1] += shape.ty;
-      t[2] += shape.tz;
-      t[3] += shape.rz;
+      Matrix t = new Matrix(new double[][]{
+          {1, 0, 0, shape.tx},
+          {0, 1, 0, shape.ty},
+          {0, 0, 1, shape.tz},
+          {0, 0, 0, 1},
+      });
+      double s = Math.sin(2 * Math.PI * shape.rz);
+      double c = Math.cos(2 * Math.PI * shape.rz);
+      Matrix r = new Matrix(new double[][]{
+          {c,-s, 0, 0},
+          {s, c, 0, 0},
+          {0, 0, 1, 0},
+          {0, 0, 0, 1},
+      });
+      t = tm.times(t).times(r);
       if (shape.obj == null) {
         dfs(shape.groupShape, t);
       } else {
@@ -123,7 +135,8 @@ public class EngineNbs implements Engine3d {
     System.out.println();
     Arrays.fill(shader.zbuffer, 0);
     shader.imageRaster = this.imageRaster;
-    dfs(root, new double[4]);
+    Matrix identity = new Matrix(new double[]{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}, 4);
+    dfs(root, identity);
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
   }
 

@@ -17,6 +17,8 @@
 
 package ab.nbsnk;
 
+import Jama.Matrix;
+
 import java.util.Arrays;
 import java.util.function.IntSupplier;
 
@@ -370,20 +372,32 @@ public class Shader {
     Arrays.fill(zbuffer, 0);
   }
 
-  public void add(Obj obj, double[] transformation) {
+  public void add(Obj obj, Matrix tm) {
     // TODO: 2025-09-30 review this method, it's a mess
     this.face = obj.face;
     this.texture = obj.texture == null ? new double[2] : obj.texture;
     this.vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
     this.normal = Arrays.copyOf(obj.normal, obj.normal.length);
-    rotate(vertex, transformation[3], 2);
-    rotate(normal, transformation[3], 2);
+//    rotate(vertex, transformation[3], 2);
+//    rotate(normal, transformation[3], 2);
+    for (int i = 0; i < normal.length / 3; i++) {
+      Matrix xyz = new Matrix(new double[]{normal[i * 3], normal[i * 3 + 1], normal[i * 3 + 2], 0}, 4);
+      Matrix xyz1 = tm.times(xyz);
+      normal[i * 3] = xyz1.get(0, 0);
+      normal[i * 3 + 1] = xyz1.get(1, 0);
+      normal[i * 3 + 2] = xyz1.get(2, 0);
+    }
     int w2 = imageWidth / 2;
     int h2 = imageHeight / 2;
     for (int i = 0; i < vertex.length / 3; i++) {
-      double x = vertex[i * 3] + transformation[0];
-      double y = vertex[i * 3 + 1] + transformation[1];
-      double z = vertex[i * 3 + 2] + transformation[2];
+//      double x = vertex[i * 3] + transformation[0];
+//      double y = vertex[i * 3 + 1] + transformation[1];
+//      double z = vertex[i * 3 + 2] + transformation[2];
+      Matrix xyz = new Matrix(new double[]{vertex[i * 3], vertex[i * 3 + 1], vertex[i * 3 + 2], 1}, 4);
+      Matrix xyz1 = tm.times(xyz);
+      double x = xyz1.get(0, 0);
+      double y = xyz1.get(1, 0);
+      double z = xyz1.get(2, 0);
       double d = (FOCAL_LENGTH / (FILM_HEIGHT / 2)) * h2 / -z;
       //d/=2;
       vertex[i * 3] = w2 + x * d;
