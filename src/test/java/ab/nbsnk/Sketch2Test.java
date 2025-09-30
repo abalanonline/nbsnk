@@ -17,14 +17,17 @@
 
 package ab.nbsnk;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SceneThumbnailSketchTest {
+class Sketch2Test {
 
+  @Disabled
   @Test
   void main() {
-    SceneThumbnailSketch.main(new String[0]);
+    double v = Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360;
+    Sketch2.main(new String[0]);
   }
 }
