@@ -22,6 +22,10 @@ import ab.jnc3.Screen;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 
 public class Sketch2 {
@@ -68,6 +72,14 @@ public class Sketch2 {
       "f 2/13/5 1/1/5 3/4/5 4/5/5\n" +
       "f 6/11/6 5/10/6 1/1/6 2/13/6\n").getBytes());
 
+  public static Obj load(String file) {
+    try {
+      return Obj.load(Files.readAllBytes(Paths.get(file)));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   public static void renderNoise(BufferedImage image) {
     int w = image.getWidth();
     int h = image.getHeight();
@@ -84,6 +96,10 @@ public class Sketch2 {
   }
 
   public static void main(String[] args) {
+    Obj teapot = load("assets/teapot.obj");
+    //Obj.flatNormal(teapot);
+    Obj cow = load("assets/cow.obj");
+    Obj.flatNormal(cow);
     Screen screen = new Screen();
 //    screen.image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
 //    screen.preferredSize = new Dimension(1920, 1080);
@@ -95,9 +111,22 @@ public class Sketch2 {
 //    Engine3d engine3d = new EngineNbs().open(screen.image);
     Engine3d engine3d = new EngineDual().open(screen.image);
     engine3d.background(background);
+    // teapot test
+    engine3d.shape(teapot).translation(-10, 8, -40);
+    engine3d.shape(teapot).translation(-10, 4, -40).rotation(0.0, 0.0, 0.1); // positive roll
+    engine3d.shape(teapot).translation(-10, 0, -40).rotation(0.0, 0.1, 0.0); // positive pitch
+    engine3d.shape(teapot).translation(-10, -4, -40).rotation(0.1, 0.0, 0.0); // positive yaw
+    engine3d.shape(teapot).translation(-10, -8, -40).rotation(0.25, 0.1, 0.0); // yaw 1/4 then pitch
+    engine3d.shape(cow).translation(5, 4, -20);
+    engine3d.shape(teapot).translation(10, 4, -40).rotation(0.25, 0.0, 0.1); // yaw 1/4 then roll
+    engine3d.shape(teapot).translation(10, 0, -40).rotation(0.0, 0.25, 0.25); // pitch 1/4 then roll 1/4
+    engine3d.shape(teapot).translation(10, -4, -40);
+    Engine3d.Shape t9 = engine3d.shape(teapot).translation(10, -8, -40);
+
+    // legacy test
     Engine3d.Shape c0 = engine3d.shape(cube);
     c0.translation(-4, 0, -20);
-    c0.rotation(10 / 360.0);
+    c0.rotation(0.0, 0.0, 10 / 360.0);
     Engine3d.Shape gFail = engine3d.shape(null);
     try {
       gFail.connect(c0);
@@ -113,7 +142,7 @@ public class Sketch2 {
     Engine3d.Shape c2 = engine3d.shape(cube);
     c2.translation(0, -1.5, 0);
     c2.connect(g0);
-    g0.rotation(10 / 360.0);
+    g0.rotation(0.0, 0.0, 10 / 360.0);
 
     Graphics graphics = screen.image.createGraphics();
     graphics.setColor(java.awt.Color.DARK_GRAY);
@@ -124,7 +153,8 @@ public class Sketch2 {
     FpsMeter fpsMeter = new FpsMeter();
     while (open[0]) {
       long m = Instant.now().toEpochMilli();
-      g0.rotation(m % 3600 / 10.0 / 360.0);
+      g0.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
+      t9.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
       c0.translation(-4, Math.sin(m % 10000 / 5000.0 * Math.PI), -20);
       engine3d.update();
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);

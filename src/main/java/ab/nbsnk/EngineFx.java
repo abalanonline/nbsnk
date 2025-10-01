@@ -33,6 +33,8 @@ import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
+import javafx.scene.transform.Rotate;
+import javafx.scene.transform.Translate;
 import javafx.stage.Stage;
 
 import java.awt.image.BufferedImage;
@@ -90,23 +92,32 @@ public class EngineFx implements Engine3d {
   private static class ShapeFx implements Shape {
     private final Node node;
     private Group group;
+    private Translate t  = new Translate();
+    private Rotate rx = new Rotate(0.0, Rotate.X_AXIS);
+    private Rotate ry = new Rotate(0.0, Rotate.Y_AXIS);
+    private Rotate rz = new Rotate(0.0, Rotate.Z_AXIS);
 
     private ShapeFx(Node node) {
+      node.getTransforms().addAll(t, ry, rx, rz);
       this.node = node;
       this.group = JavaFx.App.root;
       this.group.getChildren().add(this.node);
     }
 
     @Override
-    public void translation(double x, double y, double z) {
-      node.setTranslateX(x);
-      node.setTranslateY(-y);
-      node.setTranslateZ(-z);
+    public ShapeFx translation(double x, double y, double z) {
+      t.setX(x);
+      t.setY(-y);
+      t.setZ(-z);
+      return this;
     }
 
     @Override
-    public void rotation(double z) {
-      node.setRotate(-z * 360);
+    public ShapeFx rotation(double y, double p, double r) {
+      ry.setAngle(y * 360); // negative, the yaw axis directed towards the bottom, multiply by negative, y axis flipped
+      rx.setAngle(p * 360);
+      rz.setAngle(r * 360); // negative, the longitudinal axis directed forward, multiply by negative, z axis flipped
+      return this;
     }
 
     @Override
@@ -121,9 +132,17 @@ public class EngineFx implements Engine3d {
   private static TriangleMesh loadObj(Obj obj) {
     int[] faces = Arrays.copyOf(obj.face, obj.face.length);
     float[] points = new float[obj.vertex.length];
-    for (int i = 0; i < points.length; i++) points[i] = (float) obj.vertex[i];
+    for (int i = 0; i < points.length; i += 3) {
+      points[i] = (float) obj.vertex[i];
+      points[i + 1] = (float) -obj.vertex[i + 1];
+      points[i + 2] = (float) -obj.vertex[i + 2];
+    }
     float[] normals = new float[obj.normal.length];
-    for (int i = 0; i < normals.length; i++) normals[i] = (float) obj.normal[i];
+    for (int i = 0; i < normals.length; i += 3) {
+      normals[i] = (float) obj.normal[i];
+      normals[i + 1] = (float) -obj.normal[i + 1];
+      normals[i + 2] = (float) -obj.normal[i + 2];
+    }
     float[] texCoords = new float[2];
     if (obj.texture != null) {
       texCoords = new float[obj.texture.length];

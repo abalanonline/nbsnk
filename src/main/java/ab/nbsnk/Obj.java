@@ -37,7 +37,7 @@ public class Obj {
     obj.face = Arrays.copyOf(face, face.length);
     obj.vertex = Arrays.copyOf(vertex, vertex.length);
     obj.normal = Arrays.copyOf(normal, normal.length);
-    obj.texture = Arrays.copyOf(texture, texture.length);
+    obj.texture = texture == null ? null : Arrays.copyOf(texture, texture.length);
     obj.image = image;
     obj.id = id;
     return obj;

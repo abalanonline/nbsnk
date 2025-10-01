@@ -21,6 +21,7 @@ import java.awt.image.BufferedImage;
 
 /**
  * Conventions: right-handed system, Y up, distances in meters, angles in turns [0,1).
+ * Rotations in order yaw, pitch, roll, the object must look towards -Z, the same as user.
  */
 public interface Engine3d extends AutoCloseable {
   /**
@@ -39,12 +40,12 @@ public interface Engine3d extends AutoCloseable {
 
   interface Shape {
 
-    void translation(double x, double y, double z);
+    Shape translation(double x, double y, double z);
 
     /**
-     * @param z an angle, in turns [0,1).
+     * @param y, p, r an angle, in turns [0,1).
      */
-    void rotation(double z);
+    Shape rotation(double y, double p, double r);
 
     void connect(Shape shape);
 

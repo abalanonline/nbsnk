@@ -134,15 +134,17 @@ public class EngineDual implements Engine3d {
     }
 
     @Override
-    public void translation(double x, double y, double z) {
+    public ShapeDual translation(double x, double y, double z) {
       shapeNbs.translation(x, y, z);
       shapeFx.translation(x, y, z);
+      return this;
     }
 
     @Override
-    public void rotation(double z) {
-      shapeNbs.rotation(z);
-      shapeFx.rotation(z);
+    public ShapeDual rotation(double y, double p, double r) {
+      shapeNbs.rotation(y, p, r);
+      shapeFx.rotation(y, p, r);
+      return this;
     }
 
     @Override

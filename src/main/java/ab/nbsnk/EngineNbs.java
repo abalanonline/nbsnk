@@ -41,6 +41,8 @@ public class EngineNbs implements Engine3d {
     private double tx;
     private double ty;
     private double tz;
+    private double rx;
+    private double ry;
     private double rz;
 
     private ShapeNbs(Obj obj, Set<ShapeNbs> root) {
@@ -56,13 +58,17 @@ public class EngineNbs implements Engine3d {
     }
 
     @Override
-    public void translation(double x, double y, double z) {
+    public ShapeNbs translation(double x, double y, double z) {
       tx = x; ty = y; tz = z;
+      return this;
     }
 
     @Override
-    public void rotation(double z) {
-      rz = z;
+    public ShapeNbs rotation(double y, double p, double r) {
+      ry = -y; // negative, the yaw axis directed towards the bottom
+      rx = p;
+      rz = -r; // negative, the longitudinal axis directed forward
+      return this;
     }
 
     @Override
@@ -110,13 +116,29 @@ public class EngineNbs implements Engine3d {
       });
       double s = Math.sin(2 * Math.PI * shape.rz);
       double c = Math.cos(2 * Math.PI * shape.rz);
-      Matrix r = new Matrix(new double[][]{
+      Matrix rz = new Matrix(new double[][]{
           {c,-s, 0, 0},
           {s, c, 0, 0},
           {0, 0, 1, 0},
           {0, 0, 0, 1},
       });
-      t = tm.times(t).times(r);
+      s = Math.sin(2 * Math.PI * shape.rx);
+      c = Math.cos(2 * Math.PI * shape.rx);
+      Matrix rx = new Matrix(new double[][]{
+          {1, 0, 0, 0},
+          {0, c,-s, 0},
+          {0, s, c, 0},
+          {0, 0, 0, 1},
+      });
+      s = Math.sin(2 * Math.PI * shape.ry);
+      c = Math.cos(2 * Math.PI * shape.ry);
+      Matrix ry = new Matrix(new double[][]{
+          {c, 0, s, 0},
+          {0, 1, 0, 0},
+          {-s,0, c, 0},
+          {0, 0, 0, 1},
+      });
+      t = tm.times(t).times(ry).times(rx).times(rz);
       if (shape.obj == null) {
         dfs(shape.groupShape, t);
       } else {
