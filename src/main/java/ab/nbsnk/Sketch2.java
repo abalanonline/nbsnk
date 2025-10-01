@@ -153,6 +153,7 @@ public class Sketch2 {
     screen.keyListener = key -> {
       if (key.equals("Esc")) open[0] = false;
     };
+    engine3d.camera().translation(0, 0, 10);
     FpsMeter fpsMeter = new FpsMeter();
     while (open[0]) {
       long m = Instant.now().toEpochMilli();

@@ -49,6 +49,7 @@ public class EngineFx implements Engine3d {
   private int imageWidth;
   private int imageHeight;
   private BufferedImage image;
+  private ShapeFx camera;
 
   private static class JavaFx { // private modifier for Application which is required to be public
     public static class App extends Application {
@@ -56,6 +57,7 @@ public class EngineFx implements Engine3d {
       public static int imageHeight;
       public static Scene scene;
       public static Group root;
+      public static PerspectiveCamera camera;
       public static WritableImage writableImage;
       public static BlockingQueue<Object> io = new SynchronousQueue<>();
 
@@ -68,7 +70,7 @@ public class EngineFx implements Engine3d {
         light.setTranslateZ(0);
         root.getChildren().add(light);
         scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
-        PerspectiveCamera camera = new PerspectiveCamera(true);
+        camera = new PerspectiveCamera(true);
         camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
         scene.setCamera(camera);
         //stage.setScene(scene);
@@ -212,6 +214,7 @@ public class EngineFx implements Engine3d {
     try {
       JavaFx.App.io.take();
     } catch (InterruptedException ignore) {}
+    this.camera = new ShapeFx(JavaFx.App.camera);
     return this;
   }
 
@@ -228,9 +231,14 @@ public class EngineFx implements Engine3d {
   }
 
   @Override
-  public Shape shape(Obj obj) {
+  public ShapeFx shape(Obj obj) {
     if (obj == null) return new ShapeFx(new Group());
     return new ShapeFx(new MeshView(loadObj(obj)));
+  }
+
+  @Override
+  public ShapeFx camera() {
+    return this.camera;
   }
 
   @Override

@@ -88,8 +88,13 @@ public class EngineDual implements Engine3d {
   }
 
   @Override
-  public Shape shape(Obj obj) {
+  public ShapeDual shape(Obj obj) {
     return new ShapeDual(engineNbs.shape(obj), engineFx.shape(obj));
+  }
+
+  @Override
+  public ShapeDual camera() {
+    return new ShapeDual(engineNbs.camera(), engineFx.camera());
   }
 
   @Override

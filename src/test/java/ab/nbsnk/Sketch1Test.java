@@ -20,11 +20,11 @@ package ab.nbsnk;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-class SceneThumbnailSketchTest {
+class Sketch1Test {
 
   @Disabled
   @Test
   void main() {
-    SceneThumbnailSketch.main(new String[0]);
+    Sketch1.main(new String[0]);
   }
 }

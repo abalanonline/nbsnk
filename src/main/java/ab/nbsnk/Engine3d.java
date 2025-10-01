@@ -33,6 +33,8 @@ public interface Engine3d extends AutoCloseable {
 
   Shape shape(Obj obj);
 
+  Shape camera();
+
   void update();
 
   @Override

@@ -42,7 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.SynchronousQueue;
 
-public class SceneThumbnailSketch {
+public class Sketch1 {
 
   public static class JavaFx extends Application {
     public static final CountDownLatch latch = new CountDownLatch(1);

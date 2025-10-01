@@ -34,6 +34,7 @@ public class EngineNbs implements Engine3d {
   private BufferedImage image;
   private int[] background;
   private Set<ShapeNbs> root = new HashSet<>();
+  private ShapeNbs camera;
 
   private static class ShapeNbs implements Shape {
     private final Obj obj;
@@ -130,6 +131,8 @@ public class EngineNbs implements Engine3d {
     this.imageRaster = new int[imageWidth * imageHeight];
     this.image = image;
     this.shader = new Shader(imageWidth, imageHeight);
+    this.camera = new ShapeNbs(null, root);
+    this.camera.connect(this.camera); // disconnect from the scene
     return this;
   }
 
@@ -145,8 +148,13 @@ public class EngineNbs implements Engine3d {
   }
 
   @Override
-  public Shape shape(Obj obj) {
+  public ShapeNbs shape(Obj obj) {
     return new ShapeNbs(obj, root);
+  }
+
+  @Override
+  public ShapeNbs camera() {
+    return this.camera;
   }
 
   private void dfs(Set<ShapeNbs> shapes, Matrix tm) {
@@ -170,7 +178,7 @@ public class EngineNbs implements Engine3d {
     System.out.println();
     Arrays.fill(shader.zbuffer, 0);
     shader.imageRaster = this.imageRaster;
-    dfs(root, IDENTITY);
+    dfs(root, this.camera.multiply(IDENTITY).inverse());
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
   }
 
