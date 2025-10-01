@@ -122,6 +122,9 @@ public class Sketch2 {
     engine3d.shape(teapot).translation(10, 0, -40).rotation(0.0, 0.25, 0.25); // pitch 1/4 then roll 1/4
     engine3d.shape(teapot).translation(10, -4, -40);
     Engine3d.Shape t9 = engine3d.shape(teapot).translation(10, -8, -40);
+    // pivot test
+    Engine3d.Shape superCow = engine3d.shape(cow).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
+        .translation(0, -4, 0).rotation(0, 0.5, 0.5).setPivot().translation(0, 0, -20);
 
     // legacy test
     Engine3d.Shape c0 = engine3d.shape(cube);
@@ -155,7 +158,8 @@ public class Sketch2 {
       long m = Instant.now().toEpochMilli();
       g0.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
       t9.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
-      c0.translation(-4, Math.sin(m % 10000 / 5000.0 * Math.PI), -20);
+      superCow.rotation(m % 3600 / 10.0 / 360.0, 0, 0);
+      c0.translation(-4, Math.cos(m % 7200 / 3600.0 * Math.PI), -20);
       engine3d.update();
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
       screen.update();

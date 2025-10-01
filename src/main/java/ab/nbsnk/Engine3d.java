@@ -47,7 +47,12 @@ public interface Engine3d extends AutoCloseable {
      */
     Shape rotation(double y, double p, double r);
 
-    void connect(Shape shape);
+    /**
+     * Use the current transformation as a pivot and reset the values.
+     */
+    Shape setPivot();
+
+    Shape connect(Shape shape);
 
   }
 

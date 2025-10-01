@@ -26,6 +26,7 @@ import java.util.Set;
 
 public class EngineNbs implements Engine3d {
 
+  private static final Matrix IDENTITY = new Matrix(new double[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 4);
   private int imageWidth;
   private int imageHeight;
   private int[] imageRaster;
@@ -38,6 +39,7 @@ public class EngineNbs implements Engine3d {
     private final Obj obj;
     private final Set<ShapeNbs> groupShape;
     private Set<ShapeNbs> group;
+    private Matrix pivot = IDENTITY;
     private double tx;
     private double ty;
     private double tz;
@@ -72,11 +74,52 @@ public class EngineNbs implements Engine3d {
     }
 
     @Override
-    public void connect(Shape shape) {
+    public ShapeNbs setPivot() {
+      pivot = this.multiply(IDENTITY);
+      return this;
+    }
+
+    private Matrix multiply(Matrix matrix) {
+      Matrix t = new Matrix(new double[][]{
+          {1, 0, 0, this.tx},
+          {0, 1, 0, this.ty},
+          {0, 0, 1, this.tz},
+          {0, 0, 0, 1},
+      });
+      double s = Math.sin(2 * Math.PI * this.rz);
+      double c = Math.cos(2 * Math.PI * this.rz);
+      Matrix rz = new Matrix(new double[][]{
+          {c,-s, 0, 0},
+          {s, c, 0, 0},
+          {0, 0, 1, 0},
+          {0, 0, 0, 1},
+      });
+      s = Math.sin(2 * Math.PI * this.rx);
+      c = Math.cos(2 * Math.PI * this.rx);
+      Matrix rx = new Matrix(new double[][]{
+          {1, 0, 0, 0},
+          {0, c,-s, 0},
+          {0, s, c, 0},
+          {0, 0, 0, 1},
+      });
+      s = Math.sin(2 * Math.PI * this.ry);
+      c = Math.cos(2 * Math.PI * this.ry);
+      Matrix ry = new Matrix(new double[][]{
+          {c, 0, s, 0},
+          {0, 1, 0, 0},
+          {-s,0, c, 0},
+          {0, 0, 0, 1},
+      });
+      return matrix.times(t).times(ry).times(rx).times(rz).times(this.pivot);
+    }
+
+    @Override
+    public ShapeNbs connect(Shape shape) {
       Set<ShapeNbs> group = ((ShapeNbs) shape).groupShape;
       this.group.remove(this);
       this.group = group;
       this.group.add(this);
+      return this;
     }
   }
 
@@ -108,37 +151,7 @@ public class EngineNbs implements Engine3d {
 
   private void dfs(Set<ShapeNbs> shapes, Matrix tm) {
     for (ShapeNbs shape : shapes) {
-      Matrix t = new Matrix(new double[][]{
-          {1, 0, 0, shape.tx},
-          {0, 1, 0, shape.ty},
-          {0, 0, 1, shape.tz},
-          {0, 0, 0, 1},
-      });
-      double s = Math.sin(2 * Math.PI * shape.rz);
-      double c = Math.cos(2 * Math.PI * shape.rz);
-      Matrix rz = new Matrix(new double[][]{
-          {c,-s, 0, 0},
-          {s, c, 0, 0},
-          {0, 0, 1, 0},
-          {0, 0, 0, 1},
-      });
-      s = Math.sin(2 * Math.PI * shape.rx);
-      c = Math.cos(2 * Math.PI * shape.rx);
-      Matrix rx = new Matrix(new double[][]{
-          {1, 0, 0, 0},
-          {0, c,-s, 0},
-          {0, s, c, 0},
-          {0, 0, 0, 1},
-      });
-      s = Math.sin(2 * Math.PI * shape.ry);
-      c = Math.cos(2 * Math.PI * shape.ry);
-      Matrix ry = new Matrix(new double[][]{
-          {c, 0, s, 0},
-          {0, 1, 0, 0},
-          {-s,0, c, 0},
-          {0, 0, 0, 1},
-      });
-      t = tm.times(t).times(ry).times(rx).times(rz);
+      Matrix t = shape.multiply(tm);
       if (shape.obj == null) {
         dfs(shape.groupShape, t);
       } else {
@@ -157,8 +170,7 @@ public class EngineNbs implements Engine3d {
     System.out.println();
     Arrays.fill(shader.zbuffer, 0);
     shader.imageRaster = this.imageRaster;
-    Matrix identity = new Matrix(new double[]{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}, 4);
-    dfs(root, identity);
+    dfs(root, IDENTITY);
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
   }
 

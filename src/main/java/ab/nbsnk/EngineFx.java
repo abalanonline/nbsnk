@@ -39,6 +39,7 @@ import javafx.stage.Stage;
 
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
@@ -90,7 +91,7 @@ public class EngineFx implements Engine3d {
   }
 
   private static class ShapeFx implements Shape {
-    private final Node node;
+    private Node node;
     private Group group;
     private Translate t  = new Translate();
     private Rotate rx = new Rotate(0.0, Rotate.X_AXIS);
@@ -120,12 +121,50 @@ public class EngineFx implements Engine3d {
       return this;
     }
 
+    private void setPivotGroup() {
+      ShapeFx g = new ShapeFx(new Group()); // new group
+      g.connect(this.group);
+      this.connect(g); // connected between parent group and this
+      Node pn = this.node;
+      Group pg = this.group;
+      Translate pt = this.t; // pivot translation
+      Rotate prx = this.rx;
+      Rotate pry = this.ry;
+      Rotate prz = this.rz;
+      this.node = g.node;
+      this.group = g.group;
+      this.t = g.t;
+      this.rx = g.rx; // 0
+      this.ry = g.ry;
+      this.rz = g.rz;
+      g.node = pn;
+      g.group = pg;
+      g.t = pt;
+      g.rx = prx;
+      g.ry = pry;
+      g.rz = prz;
+    }
+
     @Override
-    public void connect(Shape shape) {
-      Group group = (Group) ((ShapeFx) shape).node;
+    public ShapeFx setPivot() {
+      t = new Translate();
+      rx = new Rotate(0.0, Rotate.X_AXIS);
+      ry = new Rotate(0.0, Rotate.Y_AXIS);
+      rz = new Rotate(0.0, Rotate.Z_AXIS);
+      node.getTransforms().addAll(0, List.of(t, ry, rx, rz)); // add a new empty transformation
+      return this;
+    }
+
+    private void connect(Group group) {
       this.group.getChildren().remove(this.node);
       this.group = group;
       this.group.getChildren().add(this.node);
+    }
+
+    @Override
+    public ShapeFx connect(Shape shape) {
+      connect((Group) ((ShapeFx) shape).node);
+      return this;
     }
   }
 

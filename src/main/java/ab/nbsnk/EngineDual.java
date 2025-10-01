@@ -148,10 +148,18 @@ public class EngineDual implements Engine3d {
     }
 
     @Override
-    public void connect(Shape shape) {
+    public ShapeDual setPivot() {
+      shapeNbs.setPivot();
+      shapeFx.setPivot();
+      return this;
+    }
+
+    @Override
+    public ShapeDual connect(Shape shape) {
       ShapeDual shapeDual = (ShapeDual) shape;
       shapeNbs.connect(shapeDual.shapeNbs);
       shapeFx.connect(shapeDual.shapeFx);
+      return this;
     }
   }
 }
