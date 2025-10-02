@@ -25,11 +25,13 @@ import javafx.scene.PerspectiveCamera;
 import javafx.scene.PointLight;
 import javafx.scene.Scene;
 import javafx.scene.SceneAntialiasing;
+import javafx.scene.image.Image;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.ImagePattern;
+import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
@@ -37,7 +39,12 @@ import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import javafx.stage.Stage;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -201,6 +208,17 @@ public class EngineFx implements Engine3d {
     return mesh;
   }
 
+  private static Image loadImg(BufferedImage image) {
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    try {
+      ImageIO.write(image, "png", stream);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(stream.toByteArray());
+    return new Image(inputStream);
+  }
+
   @Override
   public EngineFx open(BufferedImage image) {
     System.setProperty("prism.forceGPU", "true");
@@ -233,7 +251,16 @@ public class EngineFx implements Engine3d {
   @Override
   public ShapeFx shape(Obj obj) {
     if (obj == null) return new ShapeFx(new Group());
-    return new ShapeFx(new MeshView(loadObj(obj)));
+    MeshView meshView = new MeshView(loadObj(obj));
+    if (obj.image != null) {
+      PhongMaterial material = new PhongMaterial();
+      material.setDiffuseMap(loadImg(obj.image));
+      //double cl = 0.5;
+      //double tr = 0.5;
+      //material.setDiffuseColor(Color.color(cl, cl, cl, tr));
+      meshView.setMaterial(material);
+    }
+    return new ShapeFx(meshView);
   }
 
   @Override

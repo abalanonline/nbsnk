@@ -32,6 +32,8 @@ public class Shader {
   public enum Illumination { NONE, LAMBERT, GOURAUD, PHONG }
   public int enableIllumination = 3; // 0 None, 1 Lambert, 2 Gouraud, 3 Phong
   public int enableDimension = 2; // 0 point cloud, 1 wire-frame, 2 polygon mesh
+  public double nearClip = 0.1;
+  public double farClip = 100.0; // javaFx camera defaults
 
   public int[] imageRaster;
   public final int imageWidth;
@@ -325,6 +327,9 @@ public class Shader {
   }
 
   public void drawFace() {
+    if (v0z < 0 && v1z < 0 && v2z < 0) return;
+    double nearClip = 1 - this.nearClip / this.farClip;
+    if (v0z > nearClip || v1z > nearClip || v2z > nearClip) return;
     barycentricCoordinates[3] = 0; // clear cache
     int minX = Math.max((int) Math.floor(Math.min(v0x, Math.min(v1x, v2x))), 0);
     int maxX = Math.min((int) Math.ceil(Math.max(v0x, Math.max(v1x, v2x))), imageWidth - 1);
@@ -372,7 +377,7 @@ public class Shader {
     Arrays.fill(zbuffer, 0);
   }
 
-  public void add(Obj obj, Matrix tm) {
+  public void add(Obj obj, Matrix tm, int[] textureRaster, int textureWidth, int textureHeight) {
     // TODO: 2025-09-30 review this method, it's a mess
     this.face = obj.face;
     this.texture = obj.texture == null ? new double[2] : obj.texture;
@@ -403,12 +408,15 @@ public class Shader {
       vertex[i * 3] = w2 + x * d;
       // FIXME: 2025-09-29 get rid of left completely
       vertex[i * 3 + 1] = h2 - y * d; // left
-      vertex[i * 3 + 2] = z / 1000 + 500;
+      vertex[i * 3 + 2] = (farClip + z) / farClip;
 //      double d = h2 * 5 / (5 - z);
 //      vertex[i * 3] = w2 + x * d;
 //      vertex[i * 3 + 1] = h2 - y * d; // left
 //      vertex[i * 3 + 2] = z / 2 + 0.5;
     };
+    this.textureRaster = textureRaster;
+    this.textureWidth = textureWidth;
+    this.textureHeight = textureHeight;
     rasterization();
   }
 

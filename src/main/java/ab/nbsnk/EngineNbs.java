@@ -41,6 +41,9 @@ public class EngineNbs implements Engine3d {
     private final Set<ShapeNbs> groupShape;
     private Set<ShapeNbs> group;
     private Matrix pivot = IDENTITY;
+    private int[] textureRaster;
+    private int textureWidth;
+    private int textureHeight;
     private double tx;
     private double ty;
     private double tz;
@@ -149,7 +152,20 @@ public class EngineNbs implements Engine3d {
 
   @Override
   public ShapeNbs shape(Obj obj) {
-    return new ShapeNbs(obj, root);
+    ShapeNbs shape = new ShapeNbs(obj, root);
+    if (obj != null && obj.image != null) {
+      int textureWidth = obj.image.getWidth();
+      int textureHeight = obj.image.getHeight();
+      int[] textureRaster = new int[textureWidth * textureHeight];
+      //obj.image.getRaster().getDataElements(0, 0, textureWidth, textureHeight, textureRaster);
+      for (int y = 0; y < textureHeight; y++) {
+        for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = obj.image.getRGB(x, y);
+      }
+      shape.textureWidth = textureWidth;
+      shape.textureHeight = textureHeight;
+      shape.textureRaster = textureRaster;
+    }
+    return shape;
   }
 
   @Override
@@ -163,7 +179,7 @@ public class EngineNbs implements Engine3d {
       if (shape.obj == null) {
         dfs(shape.groupShape, t);
       } else {
-        shader.add(shape.obj, t);
+        shader.add(shape.obj, t, shape.textureRaster, shape.textureWidth, shape.textureHeight);
       }
     }
   }

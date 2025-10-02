@@ -19,14 +19,25 @@ package ab.nbsnk;
 
 import ab.jnc3.Screen;
 
+import javax.imageio.ImageIO;
+import java.awt.AWTException;
 import java.awt.Dimension;
+import java.awt.DisplayMode;
 import java.awt.Graphics;
+import java.awt.GraphicsDevice;
+import java.awt.Robot;
+import java.awt.Window;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Sketch2 {
 
@@ -72,9 +83,17 @@ public class Sketch2 {
       "f 2/13/5 1/1/5 3/4/5 4/5/5\n" +
       "f 6/11/6 5/10/6 1/1/6 2/13/6\n").getBytes());
 
-  public static Obj load(String file) {
+  public static Obj obj(String file) {
     try {
       return Obj.load(Files.readAllBytes(Paths.get(file)));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public static BufferedImage img(String file) {
+    try {
+      return ImageIO.read(Files.newInputStream(Paths.get(file)));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -96,16 +115,19 @@ public class Sketch2 {
   }
 
   public static void main(String[] args) {
-    Obj teapot = load("assets/teapot.obj");
+    Obj teapot = obj("assets/teapot.obj");
     //Obj.flatNormal(teapot);
-    Obj cow = load("assets/cow.obj");
-    Obj.flatNormal(cow);
+    Obj cow = obj("assets/cow.obj");
+    Obj.fixNormal(cow);
+    cow.image = img("assets/cow.png");
     Screen screen = new Screen();
 //    screen.image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
 //    screen.preferredSize = new Dimension(1920, 1080);
     screen.image = new BufferedImage(640, 360, BufferedImage.TYPE_INT_RGB);
     screen.preferredSize = new Dimension(640, 360);
-    BufferedImage background = new BufferedImage(screen.image.getWidth(), screen.image.getHeight(), BufferedImage.TYPE_INT_RGB);
+    int screenHeight = screen.image.getHeight();
+    int screenWidth = screen.image.getWidth();
+    BufferedImage background = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
     renderNoise(background);
 //    Engine3d engine3d = new EngineFx().open(screen.image);
 //    Engine3d engine3d = new EngineNbs().open(screen.image);
@@ -125,6 +147,10 @@ public class Sketch2 {
     // pivot test
     Engine3d.Shape superCow = engine3d.shape(cow).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
         .translation(0, -4, 0).rotation(0, 0.5, 0.5).setPivot().translation(0, 0, -20);
+    // more cubes
+    engine3d.shape(cube).translation(20, 0, 0);
+    engine3d.shape(cube).translation(-20, 0, 0);
+    engine3d.shape(cube).translation(0, 0, 20);
 
     // legacy test
     Engine3d.Shape c0 = engine3d.shape(cube);
@@ -153,7 +179,72 @@ public class Sketch2 {
     screen.keyListener = key -> {
       if (key.equals("Esc")) open[0] = false;
     };
-    engine3d.camera().translation(0, 0, 10);
+
+    AtomicInteger cameraTx = new AtomicInteger();
+    AtomicInteger cameraTy = new AtomicInteger();
+    AtomicInteger cameraTz = new AtomicInteger();
+    AtomicInteger cameraRy = new AtomicInteger();
+    AtomicInteger cameraRp = new AtomicInteger();
+    AtomicInteger cameraRr = new AtomicInteger();
+    Robot robot;
+    try {
+      robot = new Robot();
+    } catch (AWTException e) {
+      throw new IllegalStateException(e);
+    }
+    //screen.enablePointer();
+    screen.eventSupplier.addMouseWheelListener(e -> cameraTz.addAndGet(e.getWheelRotation()));
+    screen.eventSupplier.addMouseMotionListener(new MouseMotionListener() {
+      int x;
+      int y;
+      @Override
+      public void mouseMoved(MouseEvent e) {
+        x = e.getXOnScreen();
+        y = e.getYOnScreen();
+      }
+      @Override
+      public void mouseDragged(MouseEvent e) {
+        if ((e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK) != 0) {
+          cameraRy.addAndGet(e.getXOnScreen() - x);
+          cameraRp.addAndGet(e.getYOnScreen() - y);
+        }
+        if ((e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0) {
+          cameraTx.addAndGet(e.getXOnScreen() - x);
+          cameraTy.addAndGet(e.getYOnScreen() - y);
+        }
+        x = e.getXOnScreen();
+        y = e.getYOnScreen();
+        GraphicsDevice device = ((Window) e.getSource()).getGraphicsConfiguration().getDevice();
+        DisplayMode displayMode = device.getDisplayMode();
+        Window fullScreenWindow = device.getFullScreenWindow();
+        int w = fullScreenWindow == null ? displayMode.getWidth() : fullScreenWindow.getWidth();
+        int h = fullScreenWindow == null ? displayMode.getHeight() : fullScreenWindow.getHeight();
+        if (x == 0 || x == w - 1 || y == 0 || y == h - 1) {
+          x = w / 2;
+          y = h / 2;
+          robot.mouseMove(x, y);
+        }
+      }
+    });
+    screen.eventSupplier.addMouseListener(new MouseListener() {
+      @Override
+      public void mouseClicked(MouseEvent e) {}
+      @Override
+      public void mousePressed(MouseEvent e) {
+        switch (e.getButton()) {
+          case 4: cameraRr.addAndGet(-1); break;
+          case 5: cameraRr.addAndGet(1); break;
+        }
+      }
+      @Override
+      public void mouseReleased(MouseEvent e) {}
+      @Override
+      public void mouseEntered(MouseEvent e) {}
+      @Override
+      public void mouseExited(MouseEvent e) {}
+    });
+
+
     FpsMeter fpsMeter = new FpsMeter();
     while (open[0]) {
       long m = Instant.now().toEpochMilli();
@@ -161,8 +252,11 @@ public class Sketch2 {
       t9.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
       superCow.rotation(m % 3600 / 10.0 / 360.0, 0, 0);
       c0.translation(-4, Math.cos(m % 7200 / 3600.0 * Math.PI), -20);
+      engine3d.camera().translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get())
+          .rotation(cameraRy.get() / 10000.0, cameraRp.get() / -10000.0, cameraRr.get() / 16.0);
       engine3d.update();
-      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
+      graphics.clearRect(0, screenHeight - 40, 100, 40);
+      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, screenHeight - 20);
       screen.update();
       try { Thread.sleep(20); } catch (InterruptedException ignore) {}
     }
