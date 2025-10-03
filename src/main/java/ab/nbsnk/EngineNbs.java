@@ -22,6 +22,8 @@ import Jama.Matrix;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class EngineNbs implements Engine3d {
@@ -33,17 +35,102 @@ public class EngineNbs implements Engine3d {
   private Shader shader;
   private BufferedImage image;
   private int[] background;
-  private Set<ShapeNbs> root = new HashSet<>();
-  private ShapeNbs camera;
+  private Set<NodeNbs> root = new HashSet<>();
+  private NodeNbs camera;
 
-  private static class ShapeNbs implements Shape {
-    private final Obj obj;
-    private final Set<ShapeNbs> groupShape;
-    private Set<ShapeNbs> group;
+  @Override
+  public EngineNbs open(BufferedImage image) {
+    this.imageWidth = image.getWidth();
+    this.imageHeight = image.getHeight();
+    this.imageRaster = new int[imageWidth * imageHeight];
+    this.image = image;
+    this.shader = new Shader(imageWidth, imageHeight);
+    this.camera = new NodeNbs();
+    root.remove(this.camera); // disconnect from the scene
+    return this;
+  }
+
+  @Override
+  public void background(BufferedImage image) {
+    if (image == null) {
+      background = null;
+      return;
+    }
+    if (image.getWidth() != imageWidth || image.getHeight() != imageHeight) throw new IllegalArgumentException();
+    background = new int[imageWidth * imageHeight];
+    image.getRaster().getDataElements(0, 0, imageWidth, imageHeight, background);
+  }
+
+  @Override
+  public ShapeNbs shape(Obj obj) {
+    return new ShapeNbs(obj);
+  }
+
+  @Override
+  public GroupNbs group() {
+    return new GroupNbs();
+  }
+
+  @Override
+  public LightNbs light() {
+    return new LightNbs();
+  }
+
+  @Override
+  public NodeNbs camera() {
+    return this.camera;
+  }
+
+  private static void dfs(Set<NodeNbs> nodes, Matrix tm, Map<NodeNbs, Matrix> map) {
+    for (NodeNbs node : nodes) {
+      Matrix t = node.multiply(tm);
+      if (node instanceof GroupNbs) {
+        dfs(((GroupNbs) node).groupNode, t, map);
+        continue;
+      }
+      if (node instanceof ShapeNbs || node instanceof LightNbs) {
+        map.put(node, t);
+        continue;
+      }
+      throw new IllegalStateException();
+    }
+  }
+
+  @Override
+  public void update() {
+    if (background == null) {
+      Arrays.fill(imageRaster, -1);
+    } else {
+      System.arraycopy(background, 0, imageRaster, 0, imageWidth * imageHeight);
+    }
+    Arrays.fill(shader.zbuffer, 0);
+    shader.imageRaster = this.imageRaster;
+    Map<NodeNbs, Matrix> map = new LinkedHashMap<>();
+    dfs(root, this.camera.multiply(IDENTITY).inverse(), map);
+    for (Map.Entry<NodeNbs, Matrix> entry : map.entrySet()) {
+      NodeNbs node = entry.getKey();
+      if (node instanceof LightNbs) {
+        //System.out.println(node);
+        continue;
+      }
+      if (node instanceof ShapeNbs) {
+        ShapeNbs shape = (ShapeNbs) node;
+        shader.add(shape.obj, entry.getValue(), shape.textureRaster, shape.textureWidth, shape.textureHeight);
+        continue;
+      }
+      throw new IllegalStateException();
+    }
+    image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
+  }
+
+  @Override
+  public void close() {
+    this.image = null;
+  }
+
+  private class NodeNbs implements Node {
+    private Set<NodeNbs> group;
     private Matrix pivot = IDENTITY;
-    private int[] textureRaster;
-    private int textureWidth;
-    private int textureHeight;
     private double tx;
     private double ty;
     private double tz;
@@ -51,26 +138,19 @@ public class EngineNbs implements Engine3d {
     private double ry;
     private double rz;
 
-    private ShapeNbs(Obj obj, Set<ShapeNbs> root) {
-      if (obj == null) {
-        this.obj = null;
-        this.groupShape = new HashSet<>();
-      } else {
-        this.obj = obj.clone();
-        this.groupShape = null;
-      }
+    private NodeNbs() {
       this.group = root;
       this.group.add(this);
     }
 
     @Override
-    public ShapeNbs translation(double x, double y, double z) {
+    public NodeNbs translation(double x, double y, double z) {
       tx = x; ty = y; tz = z;
       return this;
     }
 
     @Override
-    public ShapeNbs rotation(double y, double p, double r) {
+    public NodeNbs rotation(double y, double p, double r) {
       ry = -y; // negative, the yaw axis directed towards the bottom
       rx = p;
       rz = -r; // negative, the longitudinal axis directed forward
@@ -78,8 +158,10 @@ public class EngineNbs implements Engine3d {
     }
 
     @Override
-    public ShapeNbs setPivot() {
+    public NodeNbs setPivot() {
       pivot = this.multiply(IDENTITY);
+      tx = 0; ty = 0; tz = 0;
+      rx = 0; ry = 0; rz = 0;
       return this;
     }
 
@@ -118,8 +200,8 @@ public class EngineNbs implements Engine3d {
     }
 
     @Override
-    public ShapeNbs connect(Shape shape) {
-      Set<ShapeNbs> group = ((ShapeNbs) shape).groupShape;
+    public NodeNbs connect(Node node) {
+      Set<NodeNbs> group = ((GroupNbs) node).groupNode;
       this.group.remove(this);
       this.group = group;
       this.group.add(this);
@@ -127,79 +209,46 @@ public class EngineNbs implements Engine3d {
     }
   }
 
-  @Override
-  public EngineNbs open(BufferedImage image) {
-    this.imageWidth = image.getWidth();
-    this.imageHeight = image.getHeight();
-    this.imageRaster = new int[imageWidth * imageHeight];
-    this.image = image;
-    this.shader = new Shader(imageWidth, imageHeight);
-    this.camera = new ShapeNbs(null, root);
-    this.camera.connect(this.camera); // disconnect from the scene
-    return this;
-  }
+  private class ShapeNbs extends NodeNbs implements Shape {
 
-  @Override
-  public void background(BufferedImage image) {
-    if (image == null) {
-      background = null;
-      return;
-    }
-    if (image.getWidth() != imageWidth || image.getHeight() != imageHeight) throw new IllegalArgumentException();
-    background = new int[imageWidth * imageHeight];
-    image.getRaster().getDataElements(0, 0, imageWidth, imageHeight, background);
-  }
+    private final Obj obj;
+    private int[] textureRaster;
+    private int textureWidth;
+    private int textureHeight;
 
-  @Override
-  public ShapeNbs shape(Obj obj) {
-    ShapeNbs shape = new ShapeNbs(obj, root);
-    if (obj != null && obj.image != null) {
-      int textureWidth = obj.image.getWidth();
-      int textureHeight = obj.image.getHeight();
-      int[] textureRaster = new int[textureWidth * textureHeight];
-      //obj.image.getRaster().getDataElements(0, 0, textureWidth, textureHeight, textureRaster);
-      for (int y = 0; y < textureHeight; y++) {
-        for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = obj.image.getRGB(x, y);
-      }
-      shape.textureWidth = textureWidth;
-      shape.textureHeight = textureHeight;
-      shape.textureRaster = textureRaster;
-    }
-    return shape;
-  }
-
-  @Override
-  public ShapeNbs camera() {
-    return this.camera;
-  }
-
-  private void dfs(Set<ShapeNbs> shapes, Matrix tm) {
-    for (ShapeNbs shape : shapes) {
-      Matrix t = shape.multiply(tm);
-      if (shape.obj == null) {
-        dfs(shape.groupShape, t);
-      } else {
-        shader.add(shape.obj, t, shape.textureRaster, shape.textureWidth, shape.textureHeight);
+    public ShapeNbs(Obj obj) {
+      this.obj = obj.clone();
+      if (obj.image != null) {
+        int textureWidth = obj.image.getWidth();
+        int textureHeight = obj.image.getHeight();
+        int[] textureRaster = new int[textureWidth * textureHeight];
+        //obj.image.getRaster().getDataElements(0, 0, textureWidth, textureHeight, textureRaster);
+        for (int y = 0; y < textureHeight; y++) {
+          for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = obj.image.getRGB(x, y);
+        }
+        this.textureWidth = textureWidth;
+        this.textureHeight = textureHeight;
+        this.textureRaster = textureRaster;
       }
     }
+
   }
 
-  @Override
-  public void update() {
-    if (background == null) {
-      Arrays.fill(imageRaster, -1);
-    } else {
-      System.arraycopy(background, 0, imageRaster, 0, imageWidth * imageHeight);
+  private class GroupNbs extends NodeNbs implements Group {
+
+    private Set<NodeNbs> groupNode = new HashSet<>();
+
+  }
+
+  private class LightNbs extends NodeNbs implements Light {
+
+    private int color;
+
+    @Override
+    public LightNbs setColor(int color) {
+      this.color = color;
+      return this;
     }
-    System.out.println();
-    Arrays.fill(shader.zbuffer, 0);
-    shader.imageRaster = this.imageRaster;
-    dfs(root, this.camera.multiply(IDENTITY).inverse());
-    image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
   }
 
-  @Override
-  public void close() {
-    this.image = null;
-  }
 }

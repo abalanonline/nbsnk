@@ -33,28 +33,42 @@ public interface Engine3d extends AutoCloseable {
 
   Shape shape(Obj obj);
 
-  Shape camera();
+  Group group();
+
+  Light light();
+
+  Node camera();
 
   void update();
 
   @Override
   void close();
 
-  interface Shape {
+  interface Node {
 
-    Shape translation(double x, double y, double z);
+    Node translation(double x, double y, double z);
 
     /**
      * @param y, p, r an angle, in turns [0,1).
      */
-    Shape rotation(double y, double p, double r);
+    Node rotation(double y, double p, double r);
 
     /**
      * Use the current transformation as a pivot and reset the values.
      */
-    Shape setPivot();
+    Node setPivot();
 
-    Shape connect(Shape shape);
+    Node connect(Node node);
+
+  }
+
+  interface Shape extends Node {}
+
+  interface Group extends Node {}
+
+  interface Light extends Node {
+
+    Node setColor(int color);
 
   }
 

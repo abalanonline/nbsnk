@@ -19,9 +19,6 @@ package ab.nbsnk;
 
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.scene.AmbientLight;
-import javafx.scene.Group;
-import javafx.scene.Node;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.PointLight;
 import javafx.scene.Scene;
@@ -57,114 +54,7 @@ public class EngineFx implements Engine3d {
   private int imageWidth;
   private int imageHeight;
   private BufferedImage image;
-  private ShapeFx camera;
-
-  private static class JavaFx { // private modifier for Application which is required to be public
-    public static class App extends Application {
-      public static int imageWidth;
-      public static int imageHeight;
-      public static Scene scene;
-      public static Group root;
-      public static PerspectiveCamera camera;
-      public static WritableImage writableImage;
-      public static BlockingQueue<Object> io = new SynchronousQueue<>();
-
-      @Override
-      public void start(Stage primaryStage) {
-        root = new Group();
-        PointLight light = new PointLight(Color.WHITE);
-        light.setTranslateX(-10000); // FIXME: 2025-09-30 remove this test light
-        light.setTranslateY(0);
-        light.setTranslateZ(0);
-        root.getChildren().add(light);
-
-        double ambientBrightness = 0.31;
-        AmbientLight ambientLight = new AmbientLight(Color.color(ambientBrightness, ambientBrightness, ambientBrightness));
-        ambientLight.setTranslateX(10000);
-        ambientLight.setTranslateY(0);
-        ambientLight.setTranslateZ(0);
-        root.getChildren().add(ambientLight);
-
-        scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
-        camera = new PerspectiveCamera(true);
-        camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
-        scene.setCamera(camera);
-        //stage.setScene(scene);
-        //stage.show(); // do not open a window
-        while (true) {
-          try {
-            io.put(this); // ready
-            io.take(); // wait for request
-            snapshot();
-          } catch (InterruptedException ignore) {
-            break;
-          }
-        }
-      }
-
-      private static void snapshot() { // instrumentation ready
-        writableImage = scene.snapshot(writableImage);
-      }
-
-      public static void main(String[] args) {
-        launch();
-      }
-    }
-  }
-
-  private static class ShapeFx implements Shape {
-    private Node node;
-    private Group group;
-    private Translate t  = new Translate();
-    private Rotate rx = new Rotate(0.0, Rotate.X_AXIS);
-    private Rotate ry = new Rotate(0.0, Rotate.Y_AXIS);
-    private Rotate rz = new Rotate(0.0, Rotate.Z_AXIS);
-
-    private ShapeFx(Node node) {
-      node.getTransforms().addAll(t, ry, rx, rz);
-      this.node = node;
-      this.group = JavaFx.App.root;
-      this.group.getChildren().add(this.node);
-    }
-
-    @Override
-    public ShapeFx translation(double x, double y, double z) {
-      t.setX(x);
-      t.setY(-y);
-      t.setZ(-z);
-      return this;
-    }
-
-    @Override
-    public ShapeFx rotation(double y, double p, double r) {
-      ry.setAngle(y * 360); // negative, the yaw axis directed towards the bottom, multiply by negative, y axis flipped
-      rx.setAngle(p * 360);
-      rz.setAngle(r * 360); // negative, the longitudinal axis directed forward, multiply by negative, z axis flipped
-      return this;
-    }
-
-    @Override
-    public ShapeFx setPivot() {
-      t = new Translate();
-      rx = new Rotate(0.0, Rotate.X_AXIS);
-      ry = new Rotate(0.0, Rotate.Y_AXIS);
-      rz = new Rotate(0.0, Rotate.Z_AXIS);
-      node.getTransforms().addAll(0, List.of(t, ry, rx, rz)); // add a new empty transformation
-      return this;
-    }
-
-    private void connect(Group group) {
-      this.group.getChildren().remove(this.node);
-      this.group = group;
-      this.group.getChildren().add(this.node);
-    }
-
-    @Override
-    public ShapeFx connect(Shape shape) {
-      connect((Group) ((ShapeFx) shape).node);
-      return this;
-    }
-  }
+  private NodeFx camera;
 
   private static TriangleMesh loadObj(Obj obj) {
     int[] faces = Arrays.copyOf(obj.face, obj.face.length);
@@ -221,7 +111,7 @@ public class EngineFx implements Engine3d {
     try {
       JavaFx.App.io.take();
     } catch (InterruptedException ignore) {}
-    this.camera = new ShapeFx(JavaFx.App.camera);
+    this.camera = new NodeFx(JavaFx.App.camera);
     return this;
   }
 
@@ -238,7 +128,6 @@ public class EngineFx implements Engine3d {
 
   @Override
   public ShapeFx shape(Obj obj) {
-    if (obj == null) return new ShapeFx(new Group());
     MeshView meshView = new MeshView(loadObj(obj));
     if (obj.image != null) {
       PhongMaterial material = new PhongMaterial();
@@ -252,7 +141,17 @@ public class EngineFx implements Engine3d {
   }
 
   @Override
-  public ShapeFx camera() {
+  public GroupFx group() {
+    return new GroupFx();
+  }
+
+  @Override
+  public LightFx light() {
+    return new LightFx();
+  }
+
+  @Override
+  public NodeFx camera() {
     return this.camera;
   }
 
@@ -276,4 +175,142 @@ public class EngineFx implements Engine3d {
   public void close() {
     Platform.exit();
   }
+
+  private static class JavaFx { // private modifier for Application which is required to be public
+    public static class App extends Application {
+      public static int imageWidth;
+      public static int imageHeight;
+      public static Scene scene;
+      public static javafx.scene.Group root;
+      public static PerspectiveCamera camera;
+      public static WritableImage writableImage;
+      public static BlockingQueue<Object> io = new SynchronousQueue<>();
+
+      @Override
+      public void start(Stage primaryStage) {
+        root = new javafx.scene.Group();
+//        PointLight light = new PointLight(Color.WHITE);
+//        light.setTranslateX(-10000); // FIXME: 2025-09-30 remove this test light
+//        light.setTranslateY(0);
+//        light.setTranslateZ(0);
+//        root.getChildren().add(light);
+
+//        double ambientBrightness = 0.31;
+//        AmbientLight ambientLight = new AmbientLight(Color.color(ambientBrightness, ambientBrightness, ambientBrightness));
+//        ambientLight.setTranslateX(10000);
+//        ambientLight.setTranslateY(0);
+//        ambientLight.setTranslateZ(0);
+//        root.getChildren().add(ambientLight);
+
+        scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
+        camera = new PerspectiveCamera(true);
+        camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
+        scene.setCamera(camera);
+        //stage.setScene(scene);
+        //stage.show(); // do not open a window
+        while (true) {
+          try {
+            io.put(this); // ready
+            io.take(); // wait for request
+            snapshot();
+          } catch (InterruptedException ignore) {
+            break;
+          }
+        }
+      }
+
+      private static void snapshot() { // instrumentation ready
+        writableImage = scene.snapshot(writableImage);
+      }
+
+      public static void main(String[] args) {
+        launch();
+      }
+    }
+  }
+
+  private static class NodeFx implements Node {
+    protected final javafx.scene.Node node;
+    private javafx.scene.Group group;
+    private Translate t  = new Translate();
+    private Rotate rx = new Rotate(0.0, Rotate.X_AXIS);
+    private Rotate ry = new Rotate(0.0, Rotate.Y_AXIS);
+    private Rotate rz = new Rotate(0.0, Rotate.Z_AXIS);
+
+    private NodeFx(javafx.scene.Node node) {
+      node.getTransforms().addAll(t, ry, rx, rz);
+      this.node = node;
+      this.group = JavaFx.App.root;
+      this.group.getChildren().add(this.node);
+    }
+
+    @Override
+    public NodeFx translation(double x, double y, double z) {
+      t.setX(x);
+      t.setY(-y);
+      t.setZ(-z);
+      return this;
+    }
+
+    @Override
+    public NodeFx rotation(double y, double p, double r) {
+      ry.setAngle(y * 360); // negative, the yaw axis directed towards the bottom, multiply by negative, y axis flipped
+      rx.setAngle(p * 360);
+      rz.setAngle(r * 360); // negative, the longitudinal axis directed forward, multiply by negative, z axis flipped
+      return this;
+    }
+
+    @Override
+    public NodeFx setPivot() {
+      t = new Translate();
+      rx = new Rotate(0.0, Rotate.X_AXIS);
+      ry = new Rotate(0.0, Rotate.Y_AXIS);
+      rz = new Rotate(0.0, Rotate.Z_AXIS);
+      node.getTransforms().addAll(0, List.of(t, ry, rx, rz)); // add a new empty transformation
+      return this;
+    }
+
+    private void connect(javafx.scene.Group group) {
+      this.group.getChildren().remove(this.node);
+      this.group = group;
+      this.group.getChildren().add(this.node);
+    }
+
+    @Override
+    public NodeFx connect(Node node) {
+      connect((javafx.scene.Group) ((NodeFx) node).node);
+      return this;
+    }
+  }
+
+  private static class ShapeFx extends NodeFx implements Shape {
+
+    public ShapeFx(MeshView meshView) {
+      super(meshView);
+    }
+
+  }
+
+  private static class GroupFx extends NodeFx implements Group {
+
+    public GroupFx() {
+      super(new javafx.scene.Group());
+    }
+
+  }
+
+  private static class LightFx extends NodeFx implements Light {
+
+    public LightFx() {
+      super(new PointLight(Color.WHITE));
+    }
+
+    @Override
+    public LightFx setColor(int color) {
+      ((PointLight) this.node).setColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF));
+      return null;
+    }
+
+  }
+
 }

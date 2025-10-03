@@ -30,17 +30,17 @@ import java.util.stream.Collectors;
  */
 public class EngineDual implements Engine3d {
   public static final int IMGDIV = 4;
-  private final EngineNbs engineNbs;
-  private final EngineFx engineFx;
+  private final Engine3d engineLeft;
+  private final Engine3d engineRight;
   private int imageWidth;
   private int imageHeight;
   private BufferedImage image;
-  private BufferedImage imageNbs;
-  private BufferedImage imageFx;
+  private BufferedImage imageLeft;
+  private BufferedImage imageRight;
 
   public EngineDual() {
-    this.engineNbs = new EngineNbs();
-    this.engineFx = new EngineFx();
+    this.engineLeft = new EngineNbs();
+    this.engineRight = new EngineFx();
   }
 
   @Override
@@ -71,10 +71,10 @@ public class EngineDual implements Engine3d {
     this.imageWidth = image.getWidth();
     this.imageHeight = image.getHeight();
     int height = imageHeight - imageHeight / IMGDIV;
-    this.imageNbs = new BufferedImage(imageWidth / 2, height, BufferedImage.TYPE_INT_RGB);
-    this.imageFx = new BufferedImage(imageWidth / 2, height, BufferedImage.TYPE_INT_RGB);
-    engineNbs.open(imageNbs);
-    engineFx.open(imageFx);
+    this.imageLeft = new BufferedImage(imageWidth / 2, height, BufferedImage.TYPE_INT_RGB);
+    this.imageRight = new BufferedImage(imageWidth / 2, height, BufferedImage.TYPE_INT_RGB);
+    engineLeft.open(imageLeft);
+    engineRight.open(imageRight);
     return this;
   }
 
@@ -83,88 +83,128 @@ public class EngineDual implements Engine3d {
     int height = imageHeight - imageHeight / IMGDIV;
     BufferedImage crop = new BufferedImage(imageWidth / 2, height, BufferedImage.TYPE_INT_ARGB);
     crop.getGraphics().drawImage(image, 0, 0, null);
-    engineNbs.background(crop);
-    engineFx.background(crop);
+    engineLeft.background(crop);
+    engineRight.background(crop);
   }
 
   @Override
   public ShapeDual shape(Obj obj) {
-    return new ShapeDual(engineNbs.shape(obj), engineFx.shape(obj));
+    return new ShapeDual(engineLeft.shape(obj), engineRight.shape(obj));
   }
 
   @Override
-  public ShapeDual camera() {
-    return new ShapeDual(engineNbs.camera(), engineFx.camera());
+  public GroupDual group() {
+    return new GroupDual(engineLeft.group(), engineRight.group());
+  }
+
+  @Override
+  public LightDual light() {
+    return new LightDual(engineLeft.light(), engineRight.light());
+  }
+
+  @Override
+  public NodeDual camera() {
+    return new NodeDual(engineLeft.camera(), engineRight.camera());
   }
 
   @Override
   public void update() {
-    engineNbs.update();
-    engineFx.update();
+    engineLeft.update();
+    engineRight.update();
     Graphics2D graphics = image.createGraphics();
     int width = imageWidth / 2;
     int height = imageHeight - imageHeight / IMGDIV;
-    graphics.drawImage(imageNbs, 0, 0, null);
-    graphics.drawImage(imageFx, width, 0, null);
+    graphics.drawImage(imageLeft, 0, 0, null);
+    graphics.drawImage(imageRight, width, 0, null);
     // comparison takes about 7%
     BufferedImage compare = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    int[] dataNbs = new int[width * height];
-    imageNbs.getRaster().getDataElements(0, 0, width, height, dataNbs);
-    int[] dataFx = new int[width * height];
-    imageFx.getRaster().getDataElements(0, 0, width, height, dataFx);
-    for (int i = 0; i < width * height; i++) dataNbs[i] = (dataNbs[i] >> 1 & 0x7F7F7F | 0xFF808080) - (dataFx[i] >> 1 & 0x7F7F7F);
-    compare.getRaster().setDataElements(0, 0, width, height, dataNbs);
+    int[] dataLeft = new int[width * height];
+    imageLeft.getRaster().getDataElements(0, 0, width, height, dataLeft);
+    int[] dataRight = new int[width * height];
+    imageRight.getRaster().getDataElements(0, 0, width, height, dataRight);
+    for (int i = 0; i < width * height; i++) dataLeft[i] = (dataLeft[i] >> 1 & 0x7F7F7F | 0xFF808080) - (dataRight[i] >> 1 & 0x7F7F7F);
+    compare.getRaster().setDataElements(0, 0, width, height, dataLeft);
     int thumbHeight = imageHeight / IMGDIV;
     int thumbWidth = width * thumbHeight / height;
     graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-    //graphics.drawImage(imageNbs, imageWidth - thumbWidth * 3, height, thumbWidth, thumbHeight, null);
-    //graphics.drawImage(imageFx, imageWidth - thumbWidth * 2, height, thumbWidth, thumbHeight, null);
+    //graphics.drawImage(imageLeft, imageWidth - thumbWidth * 3, height, thumbWidth, thumbHeight, null);
+    //graphics.drawImage(imageRight, imageWidth - thumbWidth * 2, height, thumbWidth, thumbHeight, null);
     graphics.drawImage(compare, imageWidth - thumbWidth, height, thumbWidth, thumbHeight, null);
   }
 
   @Override
   public void close() {
-    engineFx.close();
-    engineNbs.close();
+    engineRight.close();
+    engineLeft.close();
   }
 
-  private static class ShapeDual implements Shape {
+  private static class NodeDual implements Node {
 
-    private final Shape shapeNbs;
-    private final Shape shapeFx;
+    protected final Node nodeLeft;
+    protected final Node nodeRight;
 
-    public ShapeDual(Shape shapeNbs, Shape shapeFx) {
-      this.shapeNbs = shapeNbs;
-      this.shapeFx = shapeFx;
+    public NodeDual(Node nodeLeft, Node nodeRight) {
+      this.nodeLeft = nodeLeft;
+      this.nodeRight = nodeRight;
     }
 
     @Override
-    public ShapeDual translation(double x, double y, double z) {
-      shapeNbs.translation(x, y, z);
-      shapeFx.translation(x, y, z);
+    public NodeDual translation(double x, double y, double z) {
+      nodeLeft.translation(x, y, z);
+      nodeRight.translation(x, y, z);
       return this;
     }
 
     @Override
-    public ShapeDual rotation(double y, double p, double r) {
-      shapeNbs.rotation(y, p, r);
-      shapeFx.rotation(y, p, r);
+    public NodeDual rotation(double y, double p, double r) {
+      nodeLeft.rotation(y, p, r);
+      nodeRight.rotation(y, p, r);
       return this;
     }
 
     @Override
-    public ShapeDual setPivot() {
-      shapeNbs.setPivot();
-      shapeFx.setPivot();
+    public NodeDual setPivot() {
+      nodeLeft.setPivot();
+      nodeRight.setPivot();
       return this;
     }
 
     @Override
-    public ShapeDual connect(Shape shape) {
-      ShapeDual shapeDual = (ShapeDual) shape;
-      shapeNbs.connect(shapeDual.shapeNbs);
-      shapeFx.connect(shapeDual.shapeFx);
+    public NodeDual connect(Node node) {
+      NodeDual nodeDual = (NodeDual) node;
+      nodeLeft.connect(nodeDual.nodeLeft);
+      nodeRight.connect(nodeDual.nodeRight);
       return this;
     }
   }
+
+  private static class ShapeDual extends NodeDual implements Shape {
+
+    public ShapeDual(Shape shapeLeft, Shape shapeRight) {
+      super(shapeLeft, shapeRight);
+    }
+
+  }
+
+  private static class GroupDual extends NodeDual implements Group {
+
+    public GroupDual(Group groupLeft, Group groupRight) {
+      super(groupLeft, groupRight);
+    }
+
+  }
+
+  private static class LightDual extends NodeDual implements Light {
+    public LightDual(Light lightLeft, Light lightRight) {
+      super(lightLeft, lightRight);
+    }
+
+    @Override
+    public LightDual setColor(int color) {
+      ((Light) this.nodeLeft).setColor(color);
+      ((Light) this.nodeRight).setColor(color);
+      return this;
+    }
+  }
+
 }

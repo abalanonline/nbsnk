@@ -120,19 +120,23 @@ public class Sketch2 {
     Obj cow = obj("assets/cow.obj");
     Obj.fixNormal(cow);
     cow.image = img("assets/cow.png");
-    Obj sphere = obj("assets/blender_uv_sphere.obj");
-    sphere.image = img("assets/photosphere.jpg");
-    for (int i = 0; i < sphere.face.length; i += 9) {
-      int v = sphere.face[i + 3];
-      sphere.face[i + 3] = sphere.face[i + 6];
-      sphere.face[i + 6] = v;
-      int t = sphere.face[i + 5];
-      sphere.face[i + 5] = sphere.face[i + 8];
-      sphere.face[i + 8] = t;
+    boolean useSphere = false;
+    Obj sphere = null;
+    if (useSphere) {
+      sphere = obj("assets/blender_uv_sphere.obj");
+      sphere.image = img("assets/photosphere.jpg");
+      for (int i = 0; i < sphere.face.length; i += 9) {
+        int v = sphere.face[i + 3];
+        sphere.face[i + 3] = sphere.face[i + 6];
+        sphere.face[i + 6] = v;
+        int t = sphere.face[i + 5];
+        sphere.face[i + 5] = sphere.face[i + 8];
+        sphere.face[i + 8] = t;
+      }
+      Obj.flatNormal(sphere);
+      for (int i = 0; i < sphere.texture.length; i += 2) sphere.texture[i] = 1 - sphere.texture[i];
+      for (int i = 0; i < sphere.vertex.length; i++) sphere.vertex[i] *= 100;
     }
-    Obj.flatNormal(sphere);
-    for (int i = 0; i < sphere.texture.length; i += 2) sphere.texture[i] = 1 - sphere.texture[i];
-    for (int i = 0; i < sphere.vertex.length; i++) sphere.vertex[i] *= 100;
 
     Screen screen = new Screen();
 //    screen.image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
@@ -156,28 +160,32 @@ public class Sketch2 {
     engine3d.shape(cow).translation(5, 4, -20);
     engine3d.shape(teapot).translation(10, 4, -40).rotation(0.25, 0.0, 0.1); // yaw 1/4 then roll
     engine3d.shape(teapot).translation(10, 0, -40).rotation(0.0, 0.25, 0.25); // pitch 1/4 then roll 1/4
-    Engine3d.Shape sphere0 = engine3d.shape(sphere);
-    Engine3d.Shape t9 = engine3d.shape(teapot).translation(10, -8, -40);
+    Engine3d.Shape sphere0 = null;
+    if (useSphere) sphere0 = engine3d.shape(sphere);
+    Engine3d.Node t9 = engine3d.shape(teapot).translation(10, -8, -40);
     // pivot test
-    Engine3d.Shape superCow = engine3d.shape(cow).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
+    Engine3d.Node superCow = engine3d.shape(cow).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
         .translation(0, -4, 0).rotation(0, 0.5, 0.5).setPivot().translation(0, 0, -20);
     // more cubes
     engine3d.shape(cube).translation(20, 0, 0);
     engine3d.shape(cube).translation(-20, 0, 0);
     engine3d.shape(cube).translation(0, 0, 20);
+    // light
+    engine3d.light().setColor(0xFFFFFF).translation(-100, 0, 15);
+    Engine3d.Node light1 = engine3d.light().setColor(0xFFFF00).translation(0, 0, -20);
 
     // legacy test
     Engine3d.Shape c0 = engine3d.shape(cube);
     c0.translation(-4, 0, -20);
     c0.rotation(0.0, 0.0, 10 / 360.0);
-    Engine3d.Shape gFail = engine3d.shape(null);
+    Engine3d.Group gFail = engine3d.group();
     try {
       gFail.connect(c0);
       gFail = null;
     } catch (Exception ignore) {}
     if (gFail == null) throw new IllegalStateException("connected to obj");
 
-    Engine3d.Shape g0 = engine3d.shape(null);
+    Engine3d.Group g0 = engine3d.group();
     g0.translation(4, 0, -20);
     Engine3d.Shape c1 = engine3d.shape(cube);
     c1.translation(0, 1.5, 0);
@@ -265,10 +273,12 @@ public class Sketch2 {
       g0.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
       t9.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
       superCow.rotation(m % 3600 / 10.0 / 360.0, 0, 0);
-      c0.translation(-4, Math.cos(m % 7200 / 3600.0 * Math.PI), -20);
+      double osc1 = Math.cos(m % 7200 / 3600.0 * Math.PI);
+      c0.translation(-4, osc1, -20);
+      light1.translation(osc1 * 5, osc1 * 5, -40);
       engine3d.camera().translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get())
           .rotation(cameraRy.get() / 10000.0, cameraRp.get() / -10000.0, cameraRr.get() / 16.0);
-      sphere0.translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get());
+      if (useSphere) sphere0.translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get());
       engine3d.update();
       graphics.clearRect(0, screenHeight - 40, 100, 40);
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, screenHeight - 20);
