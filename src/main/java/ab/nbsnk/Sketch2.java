@@ -21,6 +21,7 @@ import ab.jnc3.Screen;
 
 import javax.imageio.ImageIO;
 import java.awt.AWTException;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.DisplayMode;
 import java.awt.Graphics;
@@ -111,7 +112,6 @@ public class Sketch2 {
         image.setRGB(x, y, (r << 16 | g << 8 | b | 0xFF404040) + i * 0x010101);
       }
     }
-
   }
 
   public static void main(String[] args) {
@@ -120,6 +120,20 @@ public class Sketch2 {
     Obj cow = obj("assets/cow.obj");
     Obj.fixNormal(cow);
     cow.image = img("assets/cow.png");
+    Obj sphere = obj("assets/blender_uv_sphere.obj");
+    sphere.image = img("assets/photosphere.jpg");
+    for (int i = 0; i < sphere.face.length; i += 9) {
+      int v = sphere.face[i + 3];
+      sphere.face[i + 3] = sphere.face[i + 6];
+      sphere.face[i + 6] = v;
+      int t = sphere.face[i + 5];
+      sphere.face[i + 5] = sphere.face[i + 8];
+      sphere.face[i + 8] = t;
+    }
+    Obj.flatNormal(sphere);
+    for (int i = 0; i < sphere.texture.length; i += 2) sphere.texture[i] = 1 - sphere.texture[i];
+    for (int i = 0; i < sphere.vertex.length; i++) sphere.vertex[i] *= 100;
+
     Screen screen = new Screen();
 //    screen.image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
 //    screen.preferredSize = new Dimension(1920, 1080);
@@ -127,7 +141,7 @@ public class Sketch2 {
     screen.preferredSize = new Dimension(640, 360);
     int screenHeight = screen.image.getHeight();
     int screenWidth = screen.image.getWidth();
-    BufferedImage background = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
+    BufferedImage background = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_ARGB);
     renderNoise(background);
 //    Engine3d engine3d = new EngineFx().open(screen.image);
 //    Engine3d engine3d = new EngineNbs().open(screen.image);
@@ -142,7 +156,7 @@ public class Sketch2 {
     engine3d.shape(cow).translation(5, 4, -20);
     engine3d.shape(teapot).translation(10, 4, -40).rotation(0.25, 0.0, 0.1); // yaw 1/4 then roll
     engine3d.shape(teapot).translation(10, 0, -40).rotation(0.0, 0.25, 0.25); // pitch 1/4 then roll 1/4
-    engine3d.shape(teapot).translation(10, -4, -40);
+    Engine3d.Shape sphere0 = engine3d.shape(sphere);
     Engine3d.Shape t9 = engine3d.shape(teapot).translation(10, -8, -40);
     // pivot test
     Engine3d.Shape superCow = engine3d.shape(cow).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
@@ -174,7 +188,7 @@ public class Sketch2 {
     g0.rotation(0.0, 0.0, 10 / 360.0);
 
     Graphics graphics = screen.image.createGraphics();
-    graphics.setColor(java.awt.Color.DARK_GRAY);
+    graphics.setColor(Color.DARK_GRAY);
     boolean[] open = {true};
     screen.keyListener = key -> {
       if (key.equals("Esc")) open[0] = false;
@@ -254,6 +268,7 @@ public class Sketch2 {
       c0.translation(-4, Math.cos(m % 7200 / 3600.0 * Math.PI), -20);
       engine3d.camera().translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get())
           .rotation(cameraRy.get() / 10000.0, cameraRp.get() / -10000.0, cameraRr.get() / 16.0);
+      sphere0.translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get());
       engine3d.update();
       graphics.clearRect(0, screenHeight - 40, 100, 40);
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, screenHeight - 20);

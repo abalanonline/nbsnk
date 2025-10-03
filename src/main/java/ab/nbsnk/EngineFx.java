@@ -19,6 +19,7 @@ package ab.nbsnk;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.PerspectiveCamera;
@@ -76,6 +77,14 @@ public class EngineFx implements Engine3d {
         light.setTranslateY(0);
         light.setTranslateZ(0);
         root.getChildren().add(light);
+
+        double ambientBrightness = 0.31;
+        AmbientLight ambientLight = new AmbientLight(Color.color(ambientBrightness, ambientBrightness, ambientBrightness));
+        ambientLight.setTranslateX(10000);
+        ambientLight.setTranslateY(0);
+        ambientLight.setTranslateZ(0);
+        root.getChildren().add(ambientLight);
+
         scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
         camera = new PerspectiveCamera(true);
         camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
@@ -86,11 +95,15 @@ public class EngineFx implements Engine3d {
           try {
             io.put(this); // ready
             io.take(); // wait for request
-            writableImage = scene.snapshot(writableImage);
+            snapshot();
           } catch (InterruptedException ignore) {
             break;
           }
         }
+      }
+
+      private static void snapshot() { // instrumentation ready
+        writableImage = scene.snapshot(writableImage);
       }
 
       public static void main(String[] args) {
@@ -128,30 +141,6 @@ public class EngineFx implements Engine3d {
       rx.setAngle(p * 360);
       rz.setAngle(r * 360); // negative, the longitudinal axis directed forward, multiply by negative, z axis flipped
       return this;
-    }
-
-    private void setPivotGroup() {
-      ShapeFx g = new ShapeFx(new Group()); // new group
-      g.connect(this.group);
-      this.connect(g); // connected between parent group and this
-      Node pn = this.node;
-      Group pg = this.group;
-      Translate pt = this.t; // pivot translation
-      Rotate prx = this.rx;
-      Rotate pry = this.ry;
-      Rotate prz = this.rz;
-      this.node = g.node;
-      this.group = g.group;
-      this.t = g.t;
-      this.rx = g.rx; // 0
-      this.ry = g.ry;
-      this.rz = g.rz;
-      g.node = pn;
-      g.group = pg;
-      g.t = pt;
-      g.rx = prx;
-      g.ry = pry;
-      g.rz = prz;
     }
 
     @Override
@@ -243,7 +232,6 @@ public class EngineFx implements Engine3d {
     WritableImage writableImage = new WritableImage(width, height);
     int[] data = new int[width * height];
     image.getRaster().getDataElements(0, 0, width, height, data);
-    for (int i = 0; i < data.length; i++) data[i] |= 0xFF000000; // opacity
     writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
     JavaFx.App.scene.setFill(new ImagePattern(writableImage));
   }
@@ -268,14 +256,16 @@ public class EngineFx implements Engine3d {
     return this.camera;
   }
 
-  @Override
-  public void update() {
+  private void snapshot() { // instrumentation ready
     try {
       JavaFx.App.io.put(this);
       JavaFx.App.io.take();
-    } catch (InterruptedException ignore) {
-      return;
-    }
+    } catch (InterruptedException ignore) {}
+  }
+
+  @Override
+  public void update() {
+    snapshot();
     int[] data = new int[imageWidth * imageHeight];
     JavaFx.App.writableImage.getPixelReader()
         .getPixels(0, 0, imageWidth, imageHeight, WritablePixelFormat.getIntArgbPreInstance(), data, 0, imageWidth);

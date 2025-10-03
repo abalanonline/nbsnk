@@ -17,6 +17,7 @@
 
 package ab.jnc2;
 
+import com.sun.javafx.perf.PerformanceTracker;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -108,19 +109,6 @@ public class DisplayStand implements AutoCloseable {
     light.setTranslateZ(5);
     root.getChildren().add(light);
 
-    AnimationTimer timer = new AnimationTimer() {
-      @Override
-      public void handle(long now) {
-        if (System.nanoTime() < mouseTime + 2_000_000_000) return;
-        long epochMilli = Instant.now().toEpochMilli();
-        rx.setAngle(0);
-        rz.setAngle(23.44);
-        rd.setAngle(epochMilli / 6_000.0 * 360);
-        ry.setAngle(epochMilli / 60_000.0 * 360);
-      }
-    };
-    timer.start();
-
     SubScene subScene = new SubScene(root, 512, 512, true, SceneAntialiasing.DISABLED);
     subScene.setFill(Color.GRAY);
     subScene.setCamera(camera);
@@ -143,6 +131,21 @@ public class DisplayStand implements AutoCloseable {
     scene.setOnKeyPressed(this::onKeyEvent);
     scene.setOnMousePressed(this::onMouseEvent);
     scene.setOnMouseDragged(this::onMouseEvent);
+    PerformanceTracker sceneTracker = PerformanceTracker.getSceneTracker(scene);
+
+    AnimationTimer timer = new AnimationTimer() {
+      @Override
+      public void handle(long now) {
+        if (System.nanoTime() < mouseTime + 2_000_000_000) return;
+        long epochMilli = Instant.now().toEpochMilli();
+        rx.setAngle(0);
+        rz.setAngle(23.44);
+        rd.setAngle(epochMilli / 6_000.0 * 360);
+        ry.setAngle(epochMilli / 60_000.0 * 360);
+        timeText.setText(String.format("fps %.0f", sceneTracker.getAverageFPS()));
+      }
+    };
+    timer.start();
     return scene;
   }
 
