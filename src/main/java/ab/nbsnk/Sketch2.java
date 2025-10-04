@@ -20,18 +20,9 @@ package ab.nbsnk;
 import ab.jnc3.Screen;
 
 import javax.imageio.ImageIO;
-import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.DisplayMode;
 import java.awt.Graphics;
-import java.awt.GraphicsDevice;
-import java.awt.Robot;
-import java.awt.Window;
-import java.awt.event.InputEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -197,10 +188,6 @@ public class Sketch2 {
     graphics.setColor(Color.DARK_GRAY);
     boolean[] open = {true};
     Queue<Integer> sysex = new LinkedBlockingQueue<>();
-    screen.keyListener = key -> {
-      if (key.equals("Esc")) open[0] = false;
-      if (key.length() == 1) sysex.add((int) key.charAt(0));
-    };
 
     AtomicInteger cameraTx = new AtomicInteger(-130);
     AtomicInteger cameraTy = new AtomicInteger(200);
@@ -208,64 +195,35 @@ public class Sketch2 {
     AtomicInteger cameraRy = new AtomicInteger(3600);
     AtomicInteger cameraRp = new AtomicInteger();
     AtomicInteger cameraRr = new AtomicInteger();
-    Robot robot;
-    try {
-      robot = new Robot();
-    } catch (AWTException e) {
-      throw new IllegalStateException(e);
-    }
     //screen.enablePointer();
-    screen.eventSupplier.addMouseWheelListener(e -> cameraTz.addAndGet(e.getWheelRotation()));
-    screen.eventSupplier.addMouseMotionListener(new MouseMotionListener() {
-      int x;
-      int y;
-      @Override
-      public void mouseMoved(MouseEvent e) {
-        x = e.getXOnScreen();
-        y = e.getYOnScreen();
-      }
-      @Override
-      public void mouseDragged(MouseEvent e) {
-        if ((e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK) != 0) {
-          cameraRy.addAndGet(e.getXOnScreen() - x);
-          cameraRp.addAndGet(e.getYOnScreen() - y);
+    screen.gameController = true;
+    boolean[] mouseButton = new boolean[10];
+    screen.keyListener = key -> {
+      if (key.equals("Esc")) open[0] = false;
+      if (key.length() == 1) sysex.add((int) key.charAt(0));
+      if (key.startsWith("Mouse")) {
+        char bw = key.charAt(6);
+        int button = key.charAt(7) - '0';
+        boolean buttonOn = key.charAt(5) == '+';
+        if (bw == 'B') {
+          mouseButton[button] = buttonOn;
+          if (buttonOn && button == 4) cameraRr.addAndGet(-1);
+          if (buttonOn && button == 5) cameraRr.addAndGet(1);
         }
-        if ((e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0) {
-          cameraTx.addAndGet(e.getXOnScreen() - x);
-          cameraTy.addAndGet(e.getYOnScreen() - y);
-        }
-        x = e.getXOnScreen();
-        y = e.getYOnScreen();
-        GraphicsDevice device = ((Window) e.getSource()).getGraphicsConfiguration().getDevice();
-        DisplayMode displayMode = device.getDisplayMode();
-        Window fullScreenWindow = device.getFullScreenWindow();
-        int w = fullScreenWindow == null ? displayMode.getWidth() : fullScreenWindow.getWidth();
-        int h = fullScreenWindow == null ? displayMode.getHeight() : fullScreenWindow.getHeight();
-        if (x == 0 || x == w - 1 || y == 0 || y == h - 1) {
-          x = w / 2;
-          y = h / 2;
-          robot.mouseMove(x, y);
+        if (bw == 'W') cameraTz.addAndGet(button * (buttonOn ? 1 : -1));
+        if (bw <= '9') {
+          String[] xys = key.substring(5).split(",");
+          if (mouseButton[1]) {
+            cameraRy.addAndGet(Integer.parseInt(xys[0]));
+            cameraRp.addAndGet(Integer.parseInt(xys[1]));
+          }
+          if (mouseButton[3]) {
+            cameraTx.addAndGet(Integer.parseInt(xys[0]));
+            cameraTy.addAndGet(Integer.parseInt(xys[1]));
+          }
         }
       }
-    });
-    screen.eventSupplier.addMouseListener(new MouseListener() {
-      @Override
-      public void mouseClicked(MouseEvent e) {}
-      @Override
-      public void mousePressed(MouseEvent e) {
-        switch (e.getButton()) {
-          case 4: cameraRr.addAndGet(-1); break;
-          case 5: cameraRr.addAndGet(1); break;
-        }
-      }
-      @Override
-      public void mouseReleased(MouseEvent e) {}
-      @Override
-      public void mouseEntered(MouseEvent e) {}
-      @Override
-      public void mouseExited(MouseEvent e) {}
-    });
-
+    };
 
     FpsMeter fpsMeter = new FpsMeter();
     while (open[0]) {
