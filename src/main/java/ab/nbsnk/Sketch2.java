@@ -38,6 +38,8 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Sketch2 {
@@ -164,7 +166,7 @@ public class Sketch2 {
     if (useSphere) sphere0 = engine3d.shape(sphere);
     Engine3d.Node t9 = engine3d.shape(teapot).translation(10, -8, -40);
     // pivot test
-    Engine3d.Node superCow = engine3d.shape(cow).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
+    Engine3d.Node superCow = engine3d.shape(cow).setColor(0x80FF40).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
         .translation(0, -4, 0).rotation(0, 0.5, 0.5).setPivot().translation(0, 0, -20);
     // more cubes
     engine3d.shape(cube).translation(20, 0, 0);
@@ -187,25 +189,23 @@ public class Sketch2 {
 
     Engine3d.Group g0 = engine3d.group();
     g0.translation(4, 0, -20);
-    Engine3d.Shape c1 = engine3d.shape(cube);
-    c1.translation(0, 1.5, 0);
-    c1.connect(g0);
-    Engine3d.Shape c2 = engine3d.shape(cube);
-    c2.translation(0, -1.5, 0);
-    c2.connect(g0);
+    engine3d.shape(cube).setColor(0xFF4080).translation(0, 1.5, 0).connect(g0);
+    engine3d.shape(cube).translation(0, -1.5, 0).connect(g0);
     g0.rotation(0.0, 0.0, 10 / 360.0);
 
     Graphics graphics = screen.image.createGraphics();
     graphics.setColor(Color.DARK_GRAY);
     boolean[] open = {true};
+    Queue<Integer> sysex = new LinkedBlockingQueue<>();
     screen.keyListener = key -> {
       if (key.equals("Esc")) open[0] = false;
+      if (key.length() == 1) sysex.add((int) key.charAt(0));
     };
 
-    AtomicInteger cameraTx = new AtomicInteger();
-    AtomicInteger cameraTy = new AtomicInteger();
-    AtomicInteger cameraTz = new AtomicInteger();
-    AtomicInteger cameraRy = new AtomicInteger();
+    AtomicInteger cameraTx = new AtomicInteger(-130);
+    AtomicInteger cameraTy = new AtomicInteger(200);
+    AtomicInteger cameraTz = new AtomicInteger(-22);
+    AtomicInteger cameraRy = new AtomicInteger(3600);
     AtomicInteger cameraRp = new AtomicInteger();
     AtomicInteger cameraRr = new AtomicInteger();
     Robot robot;
@@ -279,6 +279,7 @@ public class Sketch2 {
       engine3d.camera().translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get())
           .rotation(cameraRy.get() / 10000.0, cameraRp.get() / -10000.0, cameraRr.get() / 16.0);
       if (useSphere) sphere0.translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get());
+      while (!sysex.isEmpty()) engine3d.sysex(sysex.remove());
       engine3d.update();
       graphics.clearRect(0, screenHeight - 40, 100, 40);
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, screenHeight - 20);

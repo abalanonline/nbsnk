@@ -41,6 +41,11 @@ public interface Engine3d extends AutoCloseable {
 
   void update();
 
+  /**
+   * System Exclusive message.
+   */
+  void sysex(int i);
+
   @Override
   void close();
 
@@ -62,7 +67,11 @@ public interface Engine3d extends AutoCloseable {
 
   }
 
-  interface Shape extends Node {}
+  interface Shape extends Node {
+
+    Node setColor(int color);
+
+  }
 
   interface Group extends Node {}
 

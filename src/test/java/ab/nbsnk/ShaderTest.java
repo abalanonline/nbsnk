@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -98,31 +99,34 @@ class ShaderTest {
     }
     Obj flat = obj.clone();
     Obj.flatNormal(flat);
-    Obj[] o1 = {obj};
+    Obj smooth = obj;
     int width = screen.image.getWidth();
     int height = screen.image.getHeight();
     Shader shader = new Shader(width, height);
+    AtomicInteger mode = new AtomicInteger();
     screen.keyListener = key -> {
-      switch (key) {
-        case "Esc": open = false; break;
-        case "1": shader.enableDimension = 0; break;
-        case "2": shader.enableDimension = 1; break;
-        case "3": shader.enableDimension = 2; break;
-        case "4": shader.enableIllumination = 0; o1[0] = obj; break;
-        case "5": shader.enableIllumination = 1; o1[0] = flat; break;
-        case "6": shader.enableIllumination = 2; o1[0] = obj; break;
-        case "7": shader.enableIllumination = 3; o1[0] = obj; break;
-        case "=": shader.enableTexture = !shader.enableTexture; break;
-      }
+      if ("Esc".equals(key)) open = false;
+      if (key.length() == 1) mode.set(key.charAt(0));
     };
     Graphics graphics = screen.image.createGraphics();
     graphics.setColor(Color.DARK_GRAY);
     open = true;
     FpsMeter fpsMeter = new FpsMeter();
     while (open) {
+      switch (mode.get()) {
+        case '1': shader.enableDimension = 0; break;
+        case '2': shader.enableDimension = 1; break;
+        case '3': shader.enableDimension = 2; break;
+        case '4': shader.enableIllumination = Shader.Illumination.NONE; obj = smooth; break;
+        case '5': shader.enableIllumination = Shader.Illumination.LAMBERT; obj = flat; break;
+        case '6': shader.enableIllumination = Shader.Illumination.GOURAUD; obj = smooth; break;
+        case '7': shader.enableIllumination = Shader.Illumination.PHONG; obj = smooth; break;
+        case '=': shader.enableTexture = !shader.enableTexture; break;
+      }
+      mode.set(0);
       shader.cls();
       int[] buffer = shader.run(textureRaster, textureWidth, textureHeight,
-          o1[0], Instant.now().toEpochMilli() / 60_000.0);
+          obj, Instant.now().toEpochMilli() / 60_000.0);
       screen.image.getRaster().setDataElements(0, 0, width, height, buffer);
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
       screen.update();

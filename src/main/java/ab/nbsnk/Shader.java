@@ -18,8 +18,11 @@
 package ab.nbsnk;
 
 import Jama.Matrix;
+import ab.nbsnk.nodes.Col;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.IntSupplier;
 
 public class Shader {
@@ -29,30 +32,35 @@ public class Shader {
 
   public boolean enableZbuffer = true;
   public boolean enableTexture = true;
-  public enum Illumination { NONE, LAMBERT, GOURAUD, PHONG }
-  public int enableIllumination = 3; // 0 None, 1 Lambert, 2 Gouraud, 3 Phong
+  public enum Illumination { NONE, LAMBERT, GOURAUD, PHONG, BLINNPHONG }
+  public Illumination enableIllumination = Illumination.PHONG; // 0 None, 1 Lambert, 2 Gouraud, 3 Phong
   public int enableDimension = 2; // 0 point cloud, 1 wire-frame, 2 polygon mesh
   public double nearClip = 0.1;
   public double farClip = 100.0; // javaFx camera defaults
+
+  public static class Light { int color; double x; double y; double z; }
+  public List<Light> lights;
+  public Col[] lightColor;
+  public double[] lightPoint;
 
   public int[] imageRaster;
   public final int imageWidth;
   public final int imageHeight; // FIXME: 2025-09-29 remove finals everywhere
   public final double[] zbuffer;
-  public final double[] light = {-1, 0, 0}; // FIXME: 2025-09-30 light is a point, not a vector
   public final double[] viewer;
   public int[] textureRaster;
   public int textureWidth;
   public int textureHeight;
-  public int textureColor = 0xCCCCCC;
+  public Col textureColor = new Col(-1);
 
-  public double ambient = 0.4;
-  public double diffuse = 0.6;
-  public double specular = 0.8;
+  public double ambient = 0;
+  public double diffuse = 1;
+  public double specular = 0;
   public double shininess = 100;
 
   public int[] face; // current obj
   public double[] vertex;
+  public double[] vertexTrue; // because vertex is a projection
   public double[] normal;
   public double[] texture;
   public int fv0;
@@ -73,7 +81,7 @@ public class Shader {
   public double v2x;
   public double v2y;
   public double v2z;
-  public final double[] gouraudIllumination = new double[3];
+  public final Col[] gouraudIllumination = new Col[3];
   public final double[] barycentricCoordinates = new double[4];
   public int imageRasterXY;
 
@@ -112,9 +120,9 @@ public class Shader {
       default: visibleFaceMethod = this::drawVertex;
     }
     switch (enableIllumination) {
-      case 1: visiblePixelMethod = this::lambertTexture; break;
-      case 2: visiblePixelMethod = this::gouraudShading; break;
-      case 3: visiblePixelMethod = this::phongShading; break;
+      case LAMBERT: visiblePixelMethod = this::lambertTexture; break;
+      case GOURAUD: visiblePixelMethod = this::gouraudShading; break;
+      case PHONG: visiblePixelMethod = this::phongShading; break;
       default: visiblePixelMethod = this::pixelZbuffer;
     }
     if (!enableTexture) textureHeight = 0;
@@ -126,9 +134,23 @@ public class Shader {
     final double[] barycentricNormal = new double[3];
     barycentricValue(normal, fn0, normal, fn1, normal, fn2, barycentricCoordinates, barycentricNormal);
     normalize(barycentricNormal);
-    int textureColor = getTextureColor();
-    double illumination = phongReflection(light, 0, barycentricNormal, 0, viewer, imageRasterXY * 3);
-    return colorBrightness(textureColor, illumination);
+    final double[] barycentricPosition = new double[3];
+    barycentricValue(vertexTrue, fv0, vertexTrue, fv1, vertexTrue, fv2, barycentricCoordinates, barycentricPosition);
+    double x = barycentricPosition[0];
+    double y = barycentricPosition[1];
+    double z = barycentricPosition[2];
+    return illuminationRgb(x, y, z, barycentricNormal, 0, viewer, imageRasterXY * 3).mul(getTextureColor()).rgb();
+  }
+
+  public Col illuminationRgb(double x, double y, double z, double[] normal, int in, double[] viewer, int iv) {
+    Col illuminationRgb = new Col();
+    for (int i = 0; i < lightPoint.length; i += 3) {
+      double[] light = {lightPoint[i] - x, lightPoint[i + 1] - y, lightPoint[i + 2] - z};
+      normalize(light);
+      double illumination = phongReflection(light, 0, normal, in, viewer, iv);
+      illuminationRgb.add(lightColor[i / 3], illumination);
+    }
+    return illuminationRgb;
   }
 
   public double phongReflection(double[] light, int il, double[] normal, int in, double[] viewer, int iv) {
@@ -144,36 +166,18 @@ public class Shader {
   }
 
   public int gouraudShading() {
-    double illumination = barycentricValue(
-        gouraudIllumination[0], gouraudIllumination[1], gouraudIllumination[2], barycentricCoordinates);
-    int textureColor = getTextureColor();
-    return colorBrightness(textureColor, illumination);
+//    double illumination = barycentricValue(
+//        gouraudIllumination[0], gouraudIllumination[1], gouraudIllumination[2], barycentricCoordinates);
+//    Col col = new Col(illumination, illumination, illumination, 1);
+    return Col
+        .barycentric(gouraudIllumination[0], gouraudIllumination[1], gouraudIllumination[2], barycentricCoordinates)
+        .mul(getTextureColor()).rgb();
   }
 
   public int lambertTexture() {
-    double illumination = gouraudIllumination[0];
-    int textureColor = getTextureColor();
-    return colorBrightness(textureColor, illumination);
-  }
-
-  /**
-   * brightness 0-2+, brightness=1 returns the same color
-   */
-  public int colorBrightness(int color, double brightness) {
-    int rcol = (color >> 16 & 0xFF);
-    int gcol = (color >> 8 & 0xFF);
-    int bcol = (color & 0xFF);
-    if (brightness > 1) {
-      int vcol = (int) ((brightness - 1) * 0xFF);
-      rcol = Math.min(rcol + vcol, 0xFF);
-      gcol = Math.min(gcol + vcol, 0xFF);
-      bcol = Math.min(bcol + vcol, 0xFF);
-    } else {
-      rcol *= brightness;
-      gcol *= brightness;
-      bcol *= brightness;
-    }
-    return rcol << 16 | gcol << 8 | bcol;
+//    double illumination = gouraudIllumination[0];
+//    Col col = new Col(illumination, illumination, illumination, 1);
+    return gouraudIllumination[0].clone().mul(getTextureColor()).rgb();
   }
 
   public int pixelZbuffer() {
@@ -297,23 +301,28 @@ public class Shader {
     return a[ia] * b[ib] + a[ia + 1] * b[ib + 1] + a[ia + 2] * b[ib + 2];
   }
 
-  public int getTextureColor() {
+  public Col getTextureColor() {
     if (textureHeight == 0) return this.textureColor;
     double txy0 = barycentricValue(texture[ft0], texture[ft1], texture[ft2], barycentricCoordinates);
     double txy1 = barycentricValue(texture[ft0 + 1], texture[ft1 + 1], texture[ft2 + 1], barycentricCoordinates);
     //double[] txy = barycentricValue(texture, t0, texture, t1, texture, t2, r, 2);
     int tx = Math.min(Math.max(0, (int) (txy0 * textureWidth)), textureWidth - 1);
     int ty = Math.min(Math.max(0, (int) (txy1 * textureHeight)), textureHeight - 1);
-    return textureRaster[(textureHeight - 1 - ty) * textureWidth + tx];
+    return new Col(textureRaster[(textureHeight - 1 - ty) * textureWidth + tx]).mul(textureColor);
   }
 
   public void createLambertIllumination() {
-    gouraudIllumination[0] = phongReflection(light, 0, normal, fn0, new double[3], 0);
+    //gouraudIllumination[0] = phongReflection(light, 0, normal, fn0, new double[3], 0);
+    double x = (vertexTrue[fv0] + vertexTrue[fv1] + vertexTrue[fv2]) / 3;
+    double y = (vertexTrue[fv0 + 1] + vertexTrue[fv1 + 1] + vertexTrue[fv2 + 1]) / 3;
+    double z = (vertexTrue[fv0 + 2] + vertexTrue[fv1 + 2] + vertexTrue[fv2 + 2]) / 3;
+    gouraudIllumination[0] = illuminationRgb(x, y, z, normal, fn0, new double[3], 0);
   }
 
   public void createGouraudIllumination() {
     final double viewerZ = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
-    int[] vi = {fn0, fn1, fn2};
+    int[] fni = {fn0, fn1, fn2};
+    int[] fvi = {fv0, fv1, fv2};
     double[] xy = {v0x, v0y, v1x, v1y, v2x, v2y};
     double[] viewer = new double[3];
     for (int i = 0; i < 3; i++) {
@@ -321,8 +330,10 @@ public class Shader {
       viewer[1] = xy[i * 2 + 1] - imageHeight / 2.0;
       viewer[2] = viewerZ;
       normalize(viewer);
-      double v = phongReflection(light, 0, normal, vi[i], viewer, 0);
-      gouraudIllumination[i] = v;
+      //double v = phongReflection(light, 0, normal, fni[i], viewer, 0);
+      int fv = fvi[i];
+      gouraudIllumination[i] = illuminationRgb(
+          vertexTrue[fv], vertexTrue[fv + 1], vertexTrue[fv + 2], normal, fni[i], new double[3], 0);
     }
   }
 
@@ -345,8 +356,8 @@ public class Shader {
         if (zbuffer[imageRasterXY] > z) continue;
         zbuffer[imageRasterXY] = z;
         if (createIllumination) {
-          if (enableIllumination == 1) createLambertIllumination();
-          if (enableIllumination == 2) createGouraudIllumination();
+          if (enableIllumination == Illumination.LAMBERT) createLambertIllumination();
+          if (enableIllumination == Illumination.GOURAUD) createGouraudIllumination();
           createIllumination = false;
         }
         imageRaster[imageRasterXY] = visiblePixelMethod.getAsInt();
@@ -377,11 +388,40 @@ public class Shader {
     Arrays.fill(zbuffer, 0);
   }
 
-  public void add(Obj obj, Matrix tm, int[] textureRaster, int textureWidth, int textureHeight) {
+  public void addLight(int color, Matrix tm) {
+    if (lights == null) {
+      lights = new ArrayList<>();
+      lightColor = null;
+      lightPoint = null;
+    }
+    Matrix xyz = tm.times(new Matrix(new double[]{0, 0, 0, 1}, 4));
+    Light light = new Light();
+    light.x = xyz.get(0, 0);
+    light.y = xyz.get(1, 0);
+    light.z = xyz.get(2, 0);
+    light.color = color;
+    lights.add(light);
+  }
+
+  public void add(Obj obj, Matrix tm, int[] textureRaster, int textureWidth, int textureHeight, int color) {
+    if (lights != null) {
+      int size = lights.size();
+      lightColor = new Col[size];
+      lightPoint = new double[size * 3];
+      for (int i = 0; i < size; i++) {
+        Light light = lights.get(i);
+        lightColor[i] = new Col(light.color);
+        lightPoint[i * 3] = light.x;
+        lightPoint[i * 3 + 1] = light.y;
+        lightPoint[i * 3 + 2] = light.z;
+      }
+      lights = null;
+    }
     // TODO: 2025-09-30 review this method, it's a mess
     this.face = obj.face;
     this.texture = obj.texture == null ? new double[2] : obj.texture;
     this.vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
+    this.vertexTrue = new double[obj.vertex.length];
     this.normal = Arrays.copyOf(obj.normal, obj.normal.length);
 //    rotate(vertex, transformation[3], 2);
 //    rotate(normal, transformation[3], 2);
@@ -403,6 +443,9 @@ public class Shader {
       double x = xyz1.get(0, 0);
       double y = xyz1.get(1, 0);
       double z = xyz1.get(2, 0);
+      vertexTrue[i * 3] = x;
+      vertexTrue[i * 3 + 1] = y;
+      vertexTrue[i * 3 + 2] = z;
       double d = (FOCAL_LENGTH / (FILM_HEIGHT / 2)) * h2 / -z;
       //d/=2;
       vertex[i * 3] = w2 + x * d;
@@ -417,21 +460,21 @@ public class Shader {
     this.textureRaster = textureRaster;
     this.textureWidth = textureWidth;
     this.textureHeight = textureHeight;
+    this.textureColor = new Col(color);
     rasterization();
   }
 
   public int[] run(int[] textureRaster, int textureWidth, int textureHeight,
       Obj obj, double year) {
-    light[0] = -5; // DisplayStand
-    light[1] = 3;
-    light[2] = 5;
-    normalize(light);
+    lightColor = new Col[]{new Col(0xFFFFFF)};
+    lightPoint = new double[]{-5000, 3000, 5000}; // DisplayStand
     this.textureRaster = textureRaster;
     this.textureWidth = textureWidth;
     this.textureHeight = textureHeight;
     this.face = obj.face;
     this.texture = obj.texture == null ? new double[2] : obj.texture;
     this.vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
+    this.vertexTrue = new double[obj.vertex.length];
     this.normal = Arrays.copyOf(obj.normal, obj.normal.length);
     double xyzmax = 0;
     for (int i = 0; i < vertex.length; i += 3) xyzmax = Math.max(xyzmax, length(vertex, i, 3));
@@ -450,6 +493,9 @@ public class Shader {
       double x = vertex[i * 3];
       double y = vertex[i * 3 + 1];
       double z = vertex[i * 3 + 2];
+      vertexTrue[i * 3] = x;
+      vertexTrue[i * 3 + 1] = y;
+      vertexTrue[i * 3 + 2] = z;
       double d = h2 * 5 / (5 - z);
       vertex[i * 3] = w2 + x * d;
       // FIXME: 2025-09-29 get rid of left completely

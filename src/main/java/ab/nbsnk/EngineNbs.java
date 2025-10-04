@@ -107,6 +107,8 @@ public class EngineNbs implements Engine3d {
     shader.imageRaster = this.imageRaster;
     Map<NodeNbs, Matrix> map = new LinkedHashMap<>();
     dfs(root, this.camera.multiply(IDENTITY).inverse(), map);
+    map.entrySet().stream().filter(e -> e.getKey() instanceof LightNbs)
+        .forEach(e -> shader.addLight(((LightNbs) e.getKey()).color, e.getValue()));
     for (Map.Entry<NodeNbs, Matrix> entry : map.entrySet()) {
       NodeNbs node = entry.getKey();
       if (node instanceof LightNbs) {
@@ -115,12 +117,26 @@ public class EngineNbs implements Engine3d {
       }
       if (node instanceof ShapeNbs) {
         ShapeNbs shape = (ShapeNbs) node;
-        shader.add(shape.obj, entry.getValue(), shape.textureRaster, shape.textureWidth, shape.textureHeight);
+        shader.add(shape.obj, entry.getValue(), shape.textureRaster, shape.textureWidth, shape.textureHeight, shape.color);
         continue;
       }
       throw new IllegalStateException();
     }
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
+  }
+
+  @Override
+  public void sysex(int i) {
+    switch (i) {
+//      case '1': shader.enableDimension = 0; break;
+//      case '2': shader.enableDimension = 1; break;
+//      case '3': shader.enableDimension = 2; break;
+      case '4': shader.enableIllumination = Shader.Illumination.NONE; break;
+      case '5': shader.enableIllumination = Shader.Illumination.LAMBERT; break;
+      case '6': shader.enableIllumination = Shader.Illumination.GOURAUD; break;
+      case '7': shader.enableIllumination = Shader.Illumination.PHONG; break;
+      case '=': shader.enableTexture = !shader.enableTexture; break;
+    }
   }
 
   @Override
@@ -215,6 +231,7 @@ public class EngineNbs implements Engine3d {
     private int[] textureRaster;
     private int textureWidth;
     private int textureHeight;
+    private int color = -1;
 
     public ShapeNbs(Obj obj) {
       this.obj = obj.clone();
@@ -232,6 +249,11 @@ public class EngineNbs implements Engine3d {
       }
     }
 
+    @Override
+    public ShapeNbs setColor(int color) {
+      this.color = color;
+      return this;
+    }
   }
 
   private class GroupNbs extends NodeNbs implements Group {

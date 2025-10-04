@@ -122,7 +122,20 @@ public class EngineDual implements Engine3d {
     imageLeft.getRaster().getDataElements(0, 0, width, height, dataLeft);
     int[] dataRight = new int[width * height];
     imageRight.getRaster().getDataElements(0, 0, width, height, dataRight);
-    for (int i = 0; i < width * height; i++) dataLeft[i] = (dataLeft[i] >> 1 & 0x7F7F7F | 0xFF808080) - (dataRight[i] >> 1 & 0x7F7F7F);
+    int amp = 4;
+    for (int i = 0; i < width * height; i++) {
+      //dataLeft[i] = (dataLeft[i] >> 1 & 0x7F7F7F | 0xFF808080) - (dataRight[i] >> 1 & 0x7F7F7F);
+      int r = dataLeft[i] >> 16 & 0xFF;
+      int g = dataLeft[i] >> 8 & 0xFF;
+      int b = dataLeft[i] & 0xFF;
+      r -= dataRight[i] >> 16 & 0xFF;
+      g -= dataRight[i] >> 8 & 0xFF;
+      b -= dataRight[i] & 0xFF;
+      r = Math.min(Math.max(0, r * amp + 0x80), 0xFF);
+      g = Math.min(Math.max(0, g * amp + 0x80), 0xFF);
+      b = Math.min(Math.max(0, b * amp + 0x80), 0xFF);
+      dataLeft[i] = r << 16 | g << 8 | b | 0xFF000000;
+    }
     compare.getRaster().setDataElements(0, 0, width, height, dataLeft);
     int thumbHeight = imageHeight / IMGDIV;
     int thumbWidth = width * thumbHeight / height;
@@ -130,6 +143,12 @@ public class EngineDual implements Engine3d {
     //graphics.drawImage(imageLeft, imageWidth - thumbWidth * 3, height, thumbWidth, thumbHeight, null);
     //graphics.drawImage(imageRight, imageWidth - thumbWidth * 2, height, thumbWidth, thumbHeight, null);
     graphics.drawImage(compare, imageWidth - thumbWidth, height, thumbWidth, thumbHeight, null);
+  }
+
+  @Override
+  public void sysex(int i) {
+    engineLeft.sysex(i);
+    engineRight.sysex(i);
   }
 
   @Override
@@ -184,6 +203,12 @@ public class EngineDual implements Engine3d {
       super(shapeLeft, shapeRight);
     }
 
+    @Override
+    public ShapeDual setColor(int color) {
+      ((Shape) this.nodeLeft).setColor(color);
+      ((Shape) this.nodeRight).setColor(color);
+      return this;
+    }
   }
 
   private static class GroupDual extends NodeDual implements Group {

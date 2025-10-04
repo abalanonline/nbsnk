@@ -128,16 +128,7 @@ public class EngineFx implements Engine3d {
 
   @Override
   public ShapeFx shape(Obj obj) {
-    MeshView meshView = new MeshView(loadObj(obj));
-    if (obj.image != null) {
-      PhongMaterial material = new PhongMaterial();
-      material.setDiffuseMap(loadImg(obj.image));
-      //double cl = 0.5;
-      //double tr = 0.5;
-      //material.setDiffuseColor(Color.color(cl, cl, cl, tr));
-      meshView.setMaterial(material);
-    }
-    return new ShapeFx(meshView);
+    return new ShapeFx(obj);
   }
 
   @Override
@@ -172,6 +163,10 @@ public class EngineFx implements Engine3d {
   }
 
   @Override
+  public void sysex(int i) {
+  }
+
+  @Override
   public void close() {
     Platform.exit();
   }
@@ -189,19 +184,6 @@ public class EngineFx implements Engine3d {
       @Override
       public void start(Stage primaryStage) {
         root = new javafx.scene.Group();
-//        PointLight light = new PointLight(Color.WHITE);
-//        light.setTranslateX(-10000); // FIXME: 2025-09-30 remove this test light
-//        light.setTranslateY(0);
-//        light.setTranslateZ(0);
-//        root.getChildren().add(light);
-
-//        double ambientBrightness = 0.31;
-//        AmbientLight ambientLight = new AmbientLight(Color.color(ambientBrightness, ambientBrightness, ambientBrightness));
-//        ambientLight.setTranslateX(10000);
-//        ambientLight.setTranslateY(0);
-//        ambientLight.setTranslateZ(0);
-//        root.getChildren().add(ambientLight);
-
         scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
         camera = new PerspectiveCamera(true);
         camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
@@ -285,10 +267,31 @@ public class EngineFx implements Engine3d {
 
   private static class ShapeFx extends NodeFx implements Shape {
 
-    public ShapeFx(MeshView meshView) {
-      super(meshView);
+    private PhongMaterial material;
+
+    public ShapeFx(Obj obj) {
+      super(new MeshView(loadObj(obj)));
+      MeshView meshView = (MeshView) this.node;
+      if (obj.image != null) {
+        material = new PhongMaterial();
+        material.setDiffuseMap(loadImg(obj.image));
+        //double cl = 0.5;
+        //double tr = 0.5;
+        //material.setDiffuseColor(Color.color(cl, cl, cl, tr));
+        meshView.setMaterial(material);
+      } else {
+        material = new PhongMaterial();
+        material.setDiffuseColor(Color.WHITE);
+        //material.setSpecularColor(Color.BLACK);
+        meshView.setMaterial(material);
+      }
     }
 
+    @Override
+    public ShapeFx setColor(int color) {
+      material.setDiffuseColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF));
+      return this;
+    }
   }
 
   private static class GroupFx extends NodeFx implements Group {
@@ -308,7 +311,7 @@ public class EngineFx implements Engine3d {
     @Override
     public LightFx setColor(int color) {
       ((PointLight) this.node).setColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF));
-      return null;
+      return this;
     }
 
   }

@@ -182,19 +182,6 @@ public class Obj {
     obj.normal = vertexNormal;
   }
 
-  @Deprecated
-  public static void normalToTexture(Obj obj) {
-    // this is wrong
-    int fsize = obj.face.length / 3;
-    obj.texture = new double[fsize * 2];
-    for (int f = 0; f < fsize; f++) {
-      int n = obj.face[f * 3 + 1] * 3;
-      obj.texture[f * 2] = Math.atan2(obj.normal[n], obj.normal[n + 2]) / Math.PI / 2 + 0.5;
-      obj.texture[f * 2 + 1] = Math.asin(obj.normal[n + 1]) / Math.PI + 0.5;
-      obj.face[f * 3 + 2] = f;
-    }
-  }
-
   public static void fixNormal(Obj obj) {
     if (obj.normal != null) return;
     flatNormal(obj);
