@@ -160,7 +160,7 @@ public class Sketch2 {
     engine3d.shape(teapot).translation(10, 4, -40).rotation(0.25, 0.0, 0.1); // yaw 1/4 then roll
     engine3d.shape(teapot).translation(10, 0, -40).rotation(0.0, 0.25, 0.25); // pitch 1/4 then roll 1/4
     Engine3d.Shape sphere0 = null;
-    if (useSphere) sphere0 = engine3d.shape(sphere);
+    if (useSphere) sphere0 = (Engine3d.Shape) engine3d.shape(sphere).selfIllumination();
     Engine3d.Node t9 = engine3d.shape(teapot).translation(10, -8, -40);
     // pivot test
     Engine3d.Node superCow = engine3d.shape(cow).setColor(0x80FF40).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()

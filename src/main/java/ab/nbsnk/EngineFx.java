@@ -292,6 +292,13 @@ public class EngineFx implements Engine3d {
       material.setDiffuseColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF));
       return this;
     }
+
+    @Override
+    public ShapeFx selfIllumination() {
+      material.setSelfIlluminationMap(material.getDiffuseMap());
+      material.setDiffuseColor(Color.BLACK);
+      return this;
+    }
   }
 
   private static class GroupFx extends NodeFx implements Group {

@@ -209,6 +209,13 @@ public class EngineDual implements Engine3d {
       ((Shape) this.nodeRight).setColor(color);
       return this;
     }
+
+    @Override
+    public ShapeDual selfIllumination() {
+      ((Shape) this.nodeLeft).selfIllumination();
+      ((Shape) this.nodeRight).selfIllumination();
+      return this;
+    }
   }
 
   private static class GroupDual extends NodeDual implements Group {

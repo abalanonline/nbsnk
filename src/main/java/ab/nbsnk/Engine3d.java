@@ -71,6 +71,8 @@ public interface Engine3d extends AutoCloseable {
 
     Node setColor(int color);
 
+    Node selfIllumination();
+
   }
 
   interface Group extends Node {}

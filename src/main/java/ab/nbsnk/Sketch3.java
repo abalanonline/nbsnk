@@ -23,13 +23,16 @@ public class Sketch3 {
 
   private void run() {
     box = FractalLandscape.diamondSquare(BOX_SIZE, 3);
-    Obj[] landscapes = FractalLandscape.generate(box, 0, 0, BOX_SIZE, BOX_SIZE);
+    BufferedImage boxTexture = FractalLandscape.diamondSquareTexture(256, 1, 15);
+    Obj[] landscapes = FractalLandscape.generate(this.box, 0, 0, BOX_SIZE, BOX_SIZE);
     for (Obj landscape : landscapes) {
       Obj.scale(landscape, 1, BOX_HEIGHT, 1);
+      landscape.image = Sketch2.img("assets/maptest.png");
+      landscape.image = boxTexture;
 //      Obj.translate(landscape, 0, -10, 0);
     }
-    Obj teapot = Sketch2.obj("assets/teapot.obj");
-    Obj.scale(teapot, 0.5, 0.5, 0.5);
+    Obj teapot = Sketch2.obj("assets/blender_cube.obj");
+//    Obj.scale(teapot, 0.5, 0.5, 0.5);
     Obj cow = Sketch2.obj("assets/cow.obj");
     Obj.fixNormal(cow);
     cow.image = Sketch2.img("assets/cow.png");
@@ -49,7 +52,7 @@ public class Sketch3 {
 //    for (Obj landscape : landscapes) engine3d.shape(landscape).translation(0, 0, -BOX_SIZE);
 //    for (Obj landscape : landscapes) engine3d.shape(landscape).translation(-BOX_SIZE, 0, 0);
 //    for (Obj landscape : landscapes) engine3d.shape(landscape).translation(-BOX_SIZE, 0, -BOX_SIZE);
-    //sphere = (Engine3d.Shape) engine3d.shape(Sketch2.photosphere()).rotation(0.25, 0, 0);
+    sphere = (Engine3d.Shape) engine3d.shape(Sketch2.photosphere()).selfIllumination().rotation(0.25, 0, 0);
     engine3d.light().translation(700, 300, 0);
 
     World world = new World();

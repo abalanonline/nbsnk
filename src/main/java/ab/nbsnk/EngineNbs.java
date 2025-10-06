@@ -254,6 +254,11 @@ public class EngineNbs implements Engine3d {
       this.color = color;
       return this;
     }
+
+    @Override
+    public ShapeNbs selfIllumination() {
+      return this;
+    }
   }
 
   private class GroupNbs extends NodeNbs implements Group {

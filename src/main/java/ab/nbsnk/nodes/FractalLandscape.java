@@ -2,6 +2,7 @@ package ab.nbsnk.nodes;
 
 import ab.nbsnk.Obj;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,6 +57,27 @@ public class FractalLandscape {
     return resize;
   }
 
+  private static boolean test(double d) {
+    d %= 1;
+    if (d < 0) d += 1;
+    return d > 0.5;
+  }
+
+  public static BufferedImage diamondSquareTexture(int size, long seed, double temperature) {
+    int[] colors = {0xF9EC8C /* yellow */, 0x015102 /* dark green */, 0x959696 /* bright gray */, 0x7E4A40 /* brown */,
+        0x6CDA3C /* bright green */, 0xD6843B /* orange */, 0x0464D5 /* blue */, 0x676566 /* dark gray */,};
+    double[][] texture1 = FractalLandscape.diamondSquare(size, seed + 1000000000L);
+    double[][] texture2 = FractalLandscape.diamondSquare(size, seed + 2000000000L);
+    double[][] texture3 = FractalLandscape.diamondSquare(size, seed + 3000000000L);
+    BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
+    for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) {
+      int color = (test(texture1[y][x] * temperature) ? 1 : 0)
+          | (test(texture2[y][x] * temperature) ? 2 : 0) | (test(texture3[y][x] * temperature) ? 4 : 0);
+      image.setRGB(x, y, colors[color]);
+    }
+    return image;
+  }
+
   public static Obj[] generate(double[][] doubles, int x1, int y1, int x2, int y2) {
     int h = doubles.length;
     int w = doubles[0].length;
@@ -86,10 +108,19 @@ public class FractalLandscape {
       v[vi++] = xyz[1] / 4;
       v[vi++] = xyz[2] / 4;
     }
+    double[] t = new double[v.length * 2 / 3];
+    for (int i = 0, ti = 0; i < v.length;) {
+      t[ti++] = v[i++] / w; i++;
+      t[ti++] = 1 - v[i++] / h;
+    }
+    for (int i = 0; i < f.length;) {
+      int fn = f[i++]; i++; f[i++] = fn;
+    }
     assert vi == v.length;
     assert fi == f.length;
     obj.vertex = v;
     obj.face = f;
+    obj.texture = t;
     Obj.flatNormal(obj);
     return new Obj[]{obj};
   }
