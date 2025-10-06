@@ -1,6 +1,7 @@
 package ab.nbsnk;
 
 import ab.jnc3.Screen;
+import ab.nbsnk.nodes.FractalLandscape;
 
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
@@ -11,13 +12,24 @@ public class Sketch3 {
 
   private static final int UPDATE_PERIOD_NS = 10_000_000;
   public static final double MOUSE_SENSITIVITY = 1 / 10000.0;
+  public static final int BOX_SIZE = 500;
+  public static final int BOX_HEIGHT = 100;
   private Screen screen;
   private Engine3d engine3d;
   private boolean systemExit;
   public static final double WALKING_SPEED = 0.2;
+  private Engine3d.Shape sphere;
+  private double[][] box;
 
   private void run() {
+    box = FractalLandscape.diamondSquare(BOX_SIZE, 3);
+    Obj[] landscapes = FractalLandscape.generate(box, 0, 0, BOX_SIZE, BOX_SIZE);
+    for (Obj landscape : landscapes) {
+      Obj.scale(landscape, 1, BOX_HEIGHT, 1);
+//      Obj.translate(landscape, 0, -10, 0);
+    }
     Obj teapot = Sketch2.obj("assets/teapot.obj");
+    Obj.scale(teapot, 0.5, 0.5, 0.5);
     Obj cow = Sketch2.obj("assets/cow.obj");
     Obj.fixNormal(cow);
     cow.image = Sketch2.img("assets/cow.png");
@@ -28,11 +40,17 @@ public class Sketch3 {
     screen.image = new BufferedImage(640, 360, BufferedImage.TYPE_INT_RGB);
     screen.preferredSize = new Dimension(640, 360);
     engine3d = new EngineFx().open(screen.image);
-    for (int y = -100; y < 100; y += 20) {
-      for (int x = -100; x < 100; x += 20) {
-        engine3d.shape(teapot).translation(x, 0, y);
+    for (int y = -100; y <= 100; y += 40) {
+      for (int x = -100; x <= 100; x += 40) {
+        engine3d.shape(teapot).translation(x, 1, y);
       }
     }
+    for (Obj landscape : landscapes) engine3d.shape(landscape);
+//    for (Obj landscape : landscapes) engine3d.shape(landscape).translation(0, 0, -BOX_SIZE);
+//    for (Obj landscape : landscapes) engine3d.shape(landscape).translation(-BOX_SIZE, 0, 0);
+//    for (Obj landscape : landscapes) engine3d.shape(landscape).translation(-BOX_SIZE, 0, -BOX_SIZE);
+    //sphere = (Engine3d.Shape) engine3d.shape(Sketch2.photosphere()).rotation(0.25, 0, 0);
+    engine3d.light().translation(700, 300, 0);
 
     World world = new World();
     screen.gameController = true;
@@ -48,6 +66,7 @@ public class Sketch3 {
     long updateNs = System.nanoTime();
     boolean[] gamepadButton = new boolean[4];
     int[] gamepadAxis = new int[2];
+    // -------------------------------- physics loop --------------------------------
     while (!systemExit) {
       while (!keyListener.isEmpty()) {
         String key = keyListener.remove();
@@ -104,6 +123,19 @@ public class Sketch3 {
     new Sketch3().run();
   }
 
+  public double surfaceY(double x, double z) {
+    double bx = x % BOX_SIZE; if (bx < 0) bx += BOX_SIZE;
+    double bz = z % BOX_SIZE; if (bz < 0) bz += BOX_SIZE;
+    int ix = (int) bx;
+    int iz = (int) bz;
+    double py =
+        box[iz][ix] * (1 - bz + iz) * (1 - bx + ix) +
+        box[iz][(ix + 1) % BOX_SIZE] * (1 - bz + iz) * (bx - ix) +
+        box[(iz + 1) % BOX_SIZE][ix] * (bz - iz) * (1 - bx + ix) +
+        box[(iz + 1) % BOX_SIZE][(ix + 1) % BOX_SIZE] * (bz - iz) * (bx - ix);
+    return py * BOX_HEIGHT;
+  }
+
   /**
    * The world contains modifiable variables to be double buffered to the render loop.
    */
@@ -130,7 +162,9 @@ public class Sketch3 {
     public void run() {
       while (!systemExit) {
         World world = this.world;
-        engine3d.camera().translation(world.px, 1.8, world.pz).rotation(world.pry, world.prp, 0); // 6 feet tall
+        double py = surfaceY(world.px, world.pz) + 1.8;
+        engine3d.camera().translation(world.px, py, world.pz).rotation(world.pry, world.prp, 0);
+        if (sphere != null) sphere.translation(world.px, py, world.pz);
         engine3d.update();
         screen.update();
       }

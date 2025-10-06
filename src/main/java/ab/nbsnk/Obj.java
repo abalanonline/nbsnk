@@ -198,4 +198,20 @@ public class Obj {
     }
   }
 
+  public static void scale(Obj obj, double x, double y, double z) {
+    for (int i = 0; i < obj.vertex.length;) {
+      obj.vertex[i++] *= x;
+      obj.vertex[i++] *= y;
+      obj.vertex[i++] *= z;
+    }
+  }
+
+  public static void translate(Obj obj, double x, double y, double z) {
+    for (int i = 0; i < obj.vertex.length;) {
+      obj.vertex[i++] += x;
+      obj.vertex[i++] += y;
+      obj.vertex[i++] += z;
+    }
+  }
+
 }

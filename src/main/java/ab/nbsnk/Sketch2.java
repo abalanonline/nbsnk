@@ -107,6 +107,24 @@ public class Sketch2 {
     }
   }
 
+  public static Obj photosphere() {
+    Obj sphere = obj("assets/blender_uv_sphere.obj");
+    sphere.image = img("assets/photosphere.jpg");
+    for (int i = 0; i < sphere.face.length; i += 9) {
+      int v = sphere.face[i + 3];
+      sphere.face[i + 3] = sphere.face[i + 6];
+      sphere.face[i + 6] = v;
+      int t = sphere.face[i + 5];
+      sphere.face[i + 5] = sphere.face[i + 8];
+      sphere.face[i + 8] = t;
+    }
+    Obj.flatNormal(sphere);
+    Obj.interpolateNormal(sphere);
+    for (int i = 0; i < sphere.texture.length; i += 2) sphere.texture[i] = 1 - sphere.texture[i];
+    for (int i = 0; i < sphere.vertex.length; i++) sphere.vertex[i] *= 100;
+    return sphere;
+  }
+
   public static void main(String[] args) {
     Obj teapot = obj("assets/teapot.obj");
     //Obj.flatNormal(teapot);
@@ -116,19 +134,7 @@ public class Sketch2 {
     boolean useSphere = false;
     Obj sphere = null;
     if (useSphere) {
-      sphere = obj("assets/blender_uv_sphere.obj");
-      sphere.image = img("assets/photosphere.jpg");
-      for (int i = 0; i < sphere.face.length; i += 9) {
-        int v = sphere.face[i + 3];
-        sphere.face[i + 3] = sphere.face[i + 6];
-        sphere.face[i + 6] = v;
-        int t = sphere.face[i + 5];
-        sphere.face[i + 5] = sphere.face[i + 8];
-        sphere.face[i + 8] = t;
-      }
-      Obj.flatNormal(sphere);
-      for (int i = 0; i < sphere.texture.length; i += 2) sphere.texture[i] = 1 - sphere.texture[i];
-      for (int i = 0; i < sphere.vertex.length; i++) sphere.vertex[i] *= 100;
+      sphere = photosphere();
     }
 
     Screen screen = new Screen();
