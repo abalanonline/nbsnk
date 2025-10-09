@@ -38,13 +38,16 @@ import javafx.scene.transform.Translate;
 import javafx.stage.Stage;
 
 import javax.imageio.ImageIO;
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
@@ -55,6 +58,8 @@ public class EngineFx implements Engine3d {
   private int imageHeight;
   private BufferedImage image;
   private NodeFx camera;
+  private FpsMeter fpsMeter;
+  private Map<BufferedImage, Image> imageCache = new HashMap<>();
 
   private static TriangleMesh loadObj(Obj obj) {
     int[] faces = Arrays.copyOf(obj.face, obj.face.length);
@@ -116,7 +121,7 @@ public class EngineFx implements Engine3d {
   }
 
   @Override
-  public void background(BufferedImage image) {
+  public EngineFx background(BufferedImage image) {
     int width = image.getWidth();
     int height = image.getHeight();
     WritableImage writableImage = new WritableImage(width, height);
@@ -124,6 +129,7 @@ public class EngineFx implements Engine3d {
     image.getRaster().getDataElements(0, 0, width, height, data);
     writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
     JavaFx.App.scene.setFill(new ImagePattern(writableImage));
+    return this;
   }
 
   @Override
@@ -146,6 +152,12 @@ public class EngineFx implements Engine3d {
     return this.camera;
   }
 
+  @Override
+  public EngineFx setFarClip(double value) {
+    JavaFx.App.camera.setFarClip(value);
+    return this;
+  }
+
   private void snapshot() { // instrumentation ready
     try {
       JavaFx.App.io.put(this);
@@ -160,10 +172,22 @@ public class EngineFx implements Engine3d {
     JavaFx.App.writableImage.getPixelReader()
         .getPixels(0, 0, imageWidth, imageHeight, WritablePixelFormat.getIntArgbPreInstance(), data, 0, imageWidth);
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, data);
+    if (fpsMeter != null) {
+      String fps = String.format("fps: %.0f", fpsMeter.getFps());
+      Graphics graphics = image.createGraphics();
+      graphics.setColor(java.awt.Color.DARK_GRAY);
+      graphics.drawString(fps, 2, imageHeight - 4);
+    }
   }
 
   @Override
   public void sysex(int i) {
+  }
+
+  @Override
+  public EngineFx showFps() {
+    fpsMeter = new FpsMeter();
+    return this;
   }
 
   @Override
@@ -265,7 +289,7 @@ public class EngineFx implements Engine3d {
     }
   }
 
-  private static class ShapeFx extends NodeFx implements Shape {
+  private class ShapeFx extends NodeFx implements Shape {
 
     private PhongMaterial material;
 
@@ -274,7 +298,7 @@ public class EngineFx implements Engine3d {
       MeshView meshView = (MeshView) this.node;
       if (obj.image != null) {
         material = new PhongMaterial();
-        material.setDiffuseMap(loadImg(obj.image));
+        material.setDiffuseMap(imageCache.computeIfAbsent(obj.image, EngineFx::loadImg));
         //double cl = 0.5;
         //double tr = 0.5;
         //material.setDiffuseColor(Color.color(cl, cl, cl, tr));
@@ -289,7 +313,7 @@ public class EngineFx implements Engine3d {
 
     @Override
     public ShapeFx setColor(int color) {
-      material.setDiffuseColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF));
+      material.setDiffuseColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF, (color >> 24 & 0xFF) / 255.0));
       return this;
     }
 

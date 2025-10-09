@@ -37,6 +37,7 @@ public class EngineDual implements Engine3d {
   private BufferedImage image;
   private BufferedImage imageLeft;
   private BufferedImage imageRight;
+  private FpsMeter fpsMeter;
 
   public EngineDual() {
     this.engineLeft = new EngineNbs();
@@ -79,12 +80,13 @@ public class EngineDual implements Engine3d {
   }
 
   @Override
-  public void background(BufferedImage image) {
+  public EngineDual background(BufferedImage image) {
     int height = imageHeight - imageHeight / IMGDIV;
     BufferedImage crop = new BufferedImage(imageWidth / 2, height, BufferedImage.TYPE_INT_ARGB);
     crop.getGraphics().drawImage(image, 0, 0, null);
     engineLeft.background(crop);
     engineRight.background(crop);
+    return this;
   }
 
   @Override
@@ -105,6 +107,13 @@ public class EngineDual implements Engine3d {
   @Override
   public NodeDual camera() {
     return new NodeDual(engineLeft.camera(), engineRight.camera());
+  }
+
+  @Override
+  public EngineDual setFarClip(double value) {
+    engineLeft.setFarClip(value);
+    engineRight.setFarClip(value);
+    return this;
   }
 
   @Override
@@ -143,12 +152,24 @@ public class EngineDual implements Engine3d {
     //graphics.drawImage(imageLeft, imageWidth - thumbWidth * 3, height, thumbWidth, thumbHeight, null);
     //graphics.drawImage(imageRight, imageWidth - thumbWidth * 2, height, thumbWidth, thumbHeight, null);
     graphics.drawImage(compare, imageWidth - thumbWidth, height, thumbWidth, thumbHeight, null);
+    if (fpsMeter != null) {
+      String fps = String.format("fps: %.0f", fpsMeter.getFps());
+      graphics.setColor(java.awt.Color.DARK_GRAY);
+      graphics.clearRect(0, imageHeight - 40, 100, 40);
+      graphics.drawString(fps, 20, imageHeight - 20);
+    }
   }
 
   @Override
   public void sysex(int i) {
     engineLeft.sysex(i);
     engineRight.sysex(i);
+  }
+
+  @Override
+  public EngineDual showFps() {
+    fpsMeter = new FpsMeter();
+    return this;
   }
 
   @Override

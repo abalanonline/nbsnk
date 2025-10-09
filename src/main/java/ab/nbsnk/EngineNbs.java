@@ -19,6 +19,7 @@ package ab.nbsnk;
 
 import Jama.Matrix;
 
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ public class EngineNbs implements Engine3d {
   private int[] background;
   private Set<NodeNbs> root = new HashSet<>();
   private NodeNbs camera;
+  private FpsMeter fpsMeter;
 
   @Override
   public EngineNbs open(BufferedImage image) {
@@ -51,14 +53,15 @@ public class EngineNbs implements Engine3d {
   }
 
   @Override
-  public void background(BufferedImage image) {
+  public EngineNbs background(BufferedImage image) {
     if (image == null) {
       background = null;
-      return;
+      return this;
     }
     if (image.getWidth() != imageWidth || image.getHeight() != imageHeight) throw new IllegalArgumentException();
     background = new int[imageWidth * imageHeight];
     image.getRaster().getDataElements(0, 0, imageWidth, imageHeight, background);
+    return this;
   }
 
   @Override
@@ -79,6 +82,12 @@ public class EngineNbs implements Engine3d {
   @Override
   public NodeNbs camera() {
     return this.camera;
+  }
+
+  @Override
+  public EngineNbs setFarClip(double value) {
+    shader.farClip = value;
+    return this;
   }
 
   private static void dfs(Set<NodeNbs> nodes, Matrix tm, Map<NodeNbs, Matrix> map) {
@@ -123,6 +132,12 @@ public class EngineNbs implements Engine3d {
       throw new IllegalStateException();
     }
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
+    if (fpsMeter != null) {
+      String fps = String.format("fps: %.0f", fpsMeter.getFps());
+      Graphics graphics = image.createGraphics();
+      graphics.setColor(java.awt.Color.DARK_GRAY);
+      graphics.drawString(fps, 2, imageHeight - 4);
+    }
   }
 
   @Override
@@ -137,6 +152,12 @@ public class EngineNbs implements Engine3d {
       case '7': shader.enableIllumination = Shader.Illumination.PHONG; break;
       case '=': shader.enableTexture = !shader.enableTexture; break;
     }
+  }
+
+  @Override
+  public EngineNbs showFps() {
+    fpsMeter = new FpsMeter();
+    return this;
   }
 
   @Override

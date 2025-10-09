@@ -4,13 +4,7 @@ import ab.nbsnk.Obj;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class FractalLandscape {
 
@@ -78,9 +72,18 @@ public class FractalLandscape {
     return image;
   }
 
-  public static Obj[] generate(double[][] doubles, int x1, int y1, int x2, int y2) {
-    int h = doubles.length;
-    int w = doubles[0].length;
+  public static Obj[] generate(double[][] doubles, int div) {
+    int wh = doubles.length;
+    ArrayList<Obj> list = new ArrayList<>();
+    for (int y = 0; y < div; y++) for (int x = 0; x < div; x++) {
+      list.add(generate(doubles, wh * x / div, wh * y / div, wh * (x + 1) / div, wh * (y + 1) / div));
+    }
+    return list.toArray(new Obj[0]);
+  }
+
+  public static Obj generate(double[][] doubles, int x1, int y1, int x2, int y2) {
+    final int h = doubles.length;
+    final int w = doubles[0].length;
     int h0 = y2 - y1;
     int w0 = x2 - x1;
     int w1 = w0 + 1;
@@ -89,9 +92,9 @@ public class FractalLandscape {
     double[] v = new double[(h1 * w1 + h0 * w0) * 3];
     int vi = 0;
     for (int y = y1; y <= y2; y++) for (int x = x1; x <= x2; x++) {
-      v[vi++] = x;
+      v[vi++] = (double) x / (double) w;
       v[vi++] = doubles[y % h][x % w];
-      v[vi++] = y;
+      v[vi++] = (double) y / (double) h;
     }
     int[] f = new int[h0 * w0 * 4 * 3 * 3];
     int fi = 0;
@@ -110,8 +113,8 @@ public class FractalLandscape {
     }
     double[] t = new double[v.length * 2 / 3];
     for (int i = 0, ti = 0; i < v.length;) {
-      t[ti++] = v[i++] / w; i++;
-      t[ti++] = 1 - v[i++] / h;
+      t[ti++] = v[i++]; i++;
+      t[ti++] = 1 - v[i++];
     }
     for (int i = 0; i < f.length;) {
       int fn = f[i++]; i++; f[i++] = fn;
@@ -121,95 +124,8 @@ public class FractalLandscape {
     obj.vertex = v;
     obj.face = f;
     obj.texture = t;
-    Obj.flatNormal(obj);
-    return new Obj[]{obj};
-  }
-
-  /**
-   * 50, 5, 1
-   */
-  public static Obj[] generate(int n) {
-    Random random = new Random(0);
-    double[][] d = new double[n][n];
-    for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) d[y][x] = random.nextDouble();
-    V[][] vs = new V[n + 1][n + 1];
-    for (int y = 0; y < n + 1; y++) for (int x = 0; x < n + 1; x++) {
-      V v = new V();
-      v.x = x;
-      v.z = y;
-      v.y = d[y % n][x % n];
-      vs[y][x] = v;
-    }
-    List<S> so;
-    List<S> sn = new ArrayList<>();
-    for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
-      sn.add(new S(vs[y][x], vs[y][x + 1], vs[y + 1][x + 1], vs[y + 1][x]));
-    }
-    so = sn;
-    sn = new ArrayList<>();
-    for (S s : so) {
-      V v = new V();
-      for (int i = 0; i < 4; i++) {
-        v.x += s.vs[i].x / 4;
-        v.y += s.vs[i].y / 4;
-        v.z += s.vs[i].z / 4;
-      }
-      for (int i = 0; i < 4; i++) sn.add(new S(s.vs[i], v, s.vs[(i + 1) % 4]));
-    }
-    so = sn;
-    Set<V> set = new HashSet<>();
-    for (S s : so) set.addAll(Arrays.asList(s.vs));
-    List<V> vn = new ArrayList<>(set);
-    Collections.shuffle(vn);
-    Collections.shuffle(sn);
-    double[] ov = new double[vn.size() * 3];
-    for (int i = 0, j = 0; i < vn.size(); i++) {
-      V v = vn.get(i);
-      v.id = i;
-      ov[j++] = v.x;
-      ov[j++] = v.y;
-      ov[j++] = v.z;
-    }
-    int[] of = new int[sn.size() * 9];
-    for (int i = 0; i < sn.size(); i++) {
-      S s = sn.get(i);
-      of[i * 9] = s.vs[0].id;
-      of[i * 9 + 3] = s.vs[1].id;
-      of[i * 9 + 6] = s.vs[2].id;
-    }
-    Obj obj = new Obj();
-    obj.face = of;
-    obj.vertex = ov;
-    Obj.flatNormal(obj);
-    return new Obj[]{obj};
-  }
-
-  public static Obj[] generate1(int n) {
-    Random random = ThreadLocalRandom.current();
-    double[][][][] d = new double[n][n][2][2];
-    for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) d[y][x][0][0] = random.nextDouble();
-    for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) {
-      d[y][x][0][1] = d[y][(x + 1) % n][0][0];
-      d[y][x][1][0] = d[(y + 1) % n][x][0][0];
-      d[y][x][1][1] = d[(y + 1) % n][(x + 1) % n][0][0];
-    }
-
-    double[] v = new double[15];
-    v[0] = 0; v[2] = 0; v[1] = d[0][0][0][0];
-    v[3] = 0; v[5] = 20; v[4] = d[0][0][0][1];
-    v[6] = 20; v[8] = 0; v[7] = d[0][0][1][0];
-    v[9] = 20; v[11] = 20; v[10] = d[0][0][1][1];
-    v[12] = 10; v[14] = 10; v[13] = (d[0][0][0][0] + d[0][0][0][1] + d[0][0][1][0] + d[0][0][1][1]) / 4;
-    int[] f = new int[36];
-    f[0] = 0; f[3] = 1; f[6] = 4;
-    f[9] = 1; f[12] = 3; f[15] = 4;
-    f[18] = 3; f[21] = 2; f[24] = 4;
-    f[27] = 2; f[30] = 0; f[33] = 4;
-    Obj obj = new Obj();
-    obj.face = f;
-    obj.vertex = v;
-    Obj.flatNormal(obj);
-    return new Obj[]{obj};
+    //Obj.flatNormal(obj); // let the app decide which normals do they wish
+    return obj;
   }
 
   public static class V {

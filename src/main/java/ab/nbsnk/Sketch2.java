@@ -20,9 +20,7 @@ package ab.nbsnk;
 import ab.jnc3.Screen;
 
 import javax.imageio.ImageIO;
-import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -107,9 +105,10 @@ public class Sketch2 {
     }
   }
 
-  public static Obj photosphere() {
+  public static Obj photosphere(String imageFile, double size) {
     Obj sphere = obj("assets/blender_uv_sphere.obj");
-    sphere.image = img("assets/photosphere.jpg");
+    sphere.image = img(imageFile);
+    // invert normals
     for (int i = 0; i < sphere.face.length; i += 9) {
       int v = sphere.face[i + 3];
       sphere.face[i + 3] = sphere.face[i + 6];
@@ -118,10 +117,17 @@ public class Sketch2 {
       sphere.face[i + 5] = sphere.face[i + 8];
       sphere.face[i + 8] = t;
     }
+    // rotate so texture starts at +z
+    for (int i = 0; i < sphere.vertex.length; i += 3) {
+      double x = sphere.vertex[i];
+      double z = sphere.vertex[i + 2];
+      sphere.vertex[i] = z;
+      sphere.vertex[i + 2] = -x;
+    }
     Obj.flatNormal(sphere);
     Obj.interpolateNormal(sphere);
     for (int i = 0; i < sphere.texture.length; i += 2) sphere.texture[i] = 1 - sphere.texture[i];
-    for (int i = 0; i < sphere.vertex.length; i++) sphere.vertex[i] *= 100;
+    for (int i = 0; i < sphere.vertex.length; i++) sphere.vertex[i] *= size;
     return sphere;
   }
 
@@ -134,7 +140,7 @@ public class Sketch2 {
     boolean useSphere = false;
     Obj sphere = null;
     if (useSphere) {
-      sphere = photosphere();
+      sphere = photosphere("assets/photosphere.jpg", 100);
     }
 
     Screen screen = new Screen();
@@ -148,8 +154,7 @@ public class Sketch2 {
     renderNoise(background);
 //    Engine3d engine3d = new EngineFx().open(screen.image);
 //    Engine3d engine3d = new EngineNbs().open(screen.image);
-    Engine3d engine3d = new EngineDual().open(screen.image);
-    engine3d.background(background);
+    Engine3d engine3d = new EngineDual().open(screen.image).showFps().setFarClip(50).background(background);
     // teapot test
     engine3d.shape(teapot).translation(-10, 8, -40);
     engine3d.shape(teapot).translation(-10, 4, -40).rotation(0.0, 0.0, 0.1); // positive roll
@@ -163,7 +168,7 @@ public class Sketch2 {
     if (useSphere) sphere0 = (Engine3d.Shape) engine3d.shape(sphere).selfIllumination();
     Engine3d.Node t9 = engine3d.shape(teapot).translation(10, -8, -40);
     // pivot test
-    Engine3d.Node superCow = engine3d.shape(cow).setColor(0x80FF40).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
+    Engine3d.Node superCow = engine3d.shape(cow).setColor(0xFF80FF40).translation(5, 0, 0).rotation(0.5, 0, 0).setPivot()
         .translation(0, -4, 0).rotation(0, 0.5, 0.5).setPivot().translation(0, 0, -20);
     // more cubes
     engine3d.shape(cube).translation(20, 0, 0);
@@ -186,12 +191,10 @@ public class Sketch2 {
 
     Engine3d.Group g0 = engine3d.group();
     g0.translation(4, 0, -20);
-    engine3d.shape(cube).setColor(0xFF4080).translation(0, 1.5, 0).connect(g0);
+    engine3d.shape(cube).setColor(0xFFFF4080).translation(0, 1.5, 0).connect(g0);
     engine3d.shape(cube).translation(0, -1.5, 0).connect(g0);
     g0.rotation(0.0, 0.0, 10 / 360.0);
 
-    Graphics graphics = screen.image.createGraphics();
-    graphics.setColor(Color.DARK_GRAY);
     boolean[] open = {true};
     Queue<Integer> sysex = new LinkedBlockingQueue<>();
 
@@ -231,7 +234,6 @@ public class Sketch2 {
       }
     };
 
-    FpsMeter fpsMeter = new FpsMeter();
     while (open[0]) {
       long m = Instant.now().toEpochMilli();
       g0.rotation(0.0, 0.0, m % 3600 / 10.0 / 360.0);
@@ -245,8 +247,6 @@ public class Sketch2 {
       if (useSphere) sphere0.translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get());
       while (!sysex.isEmpty()) engine3d.sysex(sysex.remove());
       engine3d.update();
-      graphics.clearRect(0, screenHeight - 40, 100, 40);
-      graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, screenHeight - 20);
       screen.update();
       try { Thread.sleep(20); } catch (InterruptedException ignore) {}
     }

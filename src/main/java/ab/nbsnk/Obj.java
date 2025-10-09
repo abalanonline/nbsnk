@@ -198,7 +198,14 @@ public class Obj {
     }
   }
 
+  public static void scale(Obj obj, double s) {
+    double[] normal = obj.normal;
+    scale(obj, s, s, s);
+    obj.normal = normal;
+  }
+
   public static void scale(Obj obj, double x, double y, double z) {
+    obj.normal = null;
     for (int i = 0; i < obj.vertex.length;) {
       obj.vertex[i++] *= x;
       obj.vertex[i++] *= y;

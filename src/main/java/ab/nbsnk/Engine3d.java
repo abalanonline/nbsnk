@@ -29,7 +29,7 @@ public interface Engine3d extends AutoCloseable {
    */
   Engine3d open(BufferedImage image);
 
-  void background(BufferedImage image);
+  Engine3d background(BufferedImage image);
 
   Shape shape(Obj obj);
 
@@ -39,12 +39,16 @@ public interface Engine3d extends AutoCloseable {
 
   Node camera();
 
+  Engine3d setFarClip(double value);
+
   void update();
 
   /**
    * System Exclusive message.
    */
   void sysex(int i);
+
+  Engine3d showFps();
 
   @Override
   void close();
