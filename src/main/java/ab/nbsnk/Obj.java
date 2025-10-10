@@ -198,6 +198,35 @@ public class Obj {
     }
   }
 
+  public String toCode() {
+    return toCode(this);
+  }
+
+  public static String toCode(Obj obj) {
+    StringBuilder s = new StringBuilder();
+    s.append("Obj obj = new Obj();\nobj.face = new int[]{\n");
+    for (int i = 0; i < obj.face.length; i++) s.append(String.format(i % 9 == 8 ? "%d,\n" : "%d, ", obj.face[i]));
+    s.append("};\nobj.vertex = new double[]{\n");
+    for (int i = 0; i < obj.vertex.length; i++) s.append(String.format(i % 3 == 2 ? "%f,\n" : "%f, ", obj.vertex[i]));
+    s.append("};\n");
+    if (obj.normal != null) {
+      s.append("obj.normal = new double[]{\n");
+      for (int i = 0; i < obj.normal.length; i++) s.append(String.format(i % 3 == 2 ? "%f,\n" : "%f, ", obj.normal[i]));
+      s.append("};\n");
+    }
+    if (obj.texture != null) {
+      s.append("obj.texture = new double[]{\n");
+      for (int i = 0; i < obj.texture.length; i++) s.append(String.format(i % 2 == 1 ? "%f,\n" : "%f, ", obj.texture[i]));
+      s.append("};\n");
+    }
+    return s.toString();
+  }
+
+  public Obj scale(double s) {
+    scale(this, s);
+    return this;
+  }
+
   public static void scale(Obj obj, double s) {
     double[] normal = obj.normal;
     scale(obj, s, s, s);
@@ -211,6 +240,31 @@ public class Obj {
       obj.vertex[i++] *= y;
       obj.vertex[i++] *= z;
     }
+  }
+
+  public Obj ry90() { // rotate yaw +90 degree
+    ry90(this);
+    return this;
+  }
+
+  public static void ry90(Obj obj) { // rotate yaw +90 degree
+    for (int i = 0; i < obj.vertex.length; i += 3) {
+      double x = obj.vertex[i];
+      double z = obj.vertex[i + 2];
+      obj.vertex[i] = -z;
+      obj.vertex[i + 2] = x;
+    }
+    if (obj.normal != null) for (int i = 0; i < obj.normal.length; i += 3) {
+      double x = obj.normal[i];
+      double z = obj.normal[i + 2];
+      obj.normal[i] = -z;
+      obj.normal[i + 2] = x;
+    }
+  }
+
+  public Obj translate(double x, double y, double z) {
+    translate(this, x, y, z);
+    return this;
   }
 
   public static void translate(Obj obj, double x, double y, double z) {

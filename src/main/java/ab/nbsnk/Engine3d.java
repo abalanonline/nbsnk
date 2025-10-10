@@ -22,6 +22,7 @@ import java.awt.image.BufferedImage;
 /**
  * Conventions: right-handed system, Y up, distances in meters, angles in turns [0,1).
  * Rotations in order yaw, pitch, roll, the object must look towards -Z, the same as user.
+ * Yaw 0 direction toward north.
  */
 public interface Engine3d extends AutoCloseable {
   /**

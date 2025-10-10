@@ -22,6 +22,7 @@ import Jama.Matrix;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,6 +40,7 @@ public class EngineNbs implements Engine3d {
   private Set<NodeNbs> root = new HashSet<>();
   private NodeNbs camera;
   private FpsMeter fpsMeter;
+  private Map<BufferedImage, int[]> imageCache = new HashMap<>();
 
   @Override
   public EngineNbs open(BufferedImage image) {
@@ -126,7 +128,10 @@ public class EngineNbs implements Engine3d {
       }
       if (node instanceof ShapeNbs) {
         ShapeNbs shape = (ShapeNbs) node;
+        Shader.Illumination enableIllumination = shader.enableIllumination;
+        if (shape.selfIllumination) shader.enableIllumination = Shader.Illumination.NONE;
         shader.add(shape.obj, entry.getValue(), shape.textureRaster, shape.textureWidth, shape.textureHeight, shape.color);
+        if (shape.selfIllumination) shader.enableIllumination = enableIllumination;
         continue;
       }
       throw new IllegalStateException();
@@ -246,6 +251,17 @@ public class EngineNbs implements Engine3d {
     }
   }
 
+  private static int[] loadImg(BufferedImage image) {
+    int textureWidth = image.getWidth();
+    int textureHeight = image.getHeight();
+    int[] textureRaster = new int[textureWidth * textureHeight];
+    //image.getRaster().getDataElements(0, 0, textureWidth, textureHeight, textureRaster);
+    for (int y = 0; y < textureHeight; y++) {
+      for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = image.getRGB(x, y);
+    }
+    return textureRaster;
+  }
+
   private class ShapeNbs extends NodeNbs implements Shape {
 
     private final Obj obj;
@@ -253,17 +269,14 @@ public class EngineNbs implements Engine3d {
     private int textureWidth;
     private int textureHeight;
     private int color = -1;
+    private boolean selfIllumination;
 
     public ShapeNbs(Obj obj) {
       this.obj = obj.clone();
       if (obj.image != null) {
         int textureWidth = obj.image.getWidth();
         int textureHeight = obj.image.getHeight();
-        int[] textureRaster = new int[textureWidth * textureHeight];
-        //obj.image.getRaster().getDataElements(0, 0, textureWidth, textureHeight, textureRaster);
-        for (int y = 0; y < textureHeight; y++) {
-          for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = obj.image.getRGB(x, y);
-        }
+        int[] textureRaster = imageCache.computeIfAbsent(obj.image, EngineNbs::loadImg);
         this.textureWidth = textureWidth;
         this.textureHeight = textureHeight;
         this.textureRaster = textureRaster;
@@ -278,6 +291,7 @@ public class EngineNbs implements Engine3d {
 
     @Override
     public ShapeNbs selfIllumination() {
+      selfIllumination = true;
       return this;
     }
   }
@@ -290,7 +304,7 @@ public class EngineNbs implements Engine3d {
 
   private class LightNbs extends NodeNbs implements Light {
 
-    private int color;
+    private int color = -1;
 
     @Override
     public LightNbs setColor(int color) {

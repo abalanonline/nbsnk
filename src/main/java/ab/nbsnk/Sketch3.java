@@ -27,6 +27,14 @@ public class Sketch3 {
   private Engine3d.Shape[] tiles;
   private double[] tilexz;
 
+  public static BufferedImage scale(BufferedImage image, int v) {
+    int width = image.getWidth();
+    int height = image.getHeight();
+    BufferedImage scaled = new BufferedImage(width * v, height * v, BufferedImage.TYPE_INT_RGB);
+    scaled.getGraphics().drawImage(image, 0, 0, width * v, height * v, null);
+    return scaled;
+  }
+
   private void run() {
     boolean fullHd = false;
 //    fullHd = true;
@@ -43,12 +51,13 @@ public class Sketch3 {
       Obj.interpolateNormal(tileObj);
       tileObj.image = boxTexture;
     }
-    Obj gridShape = Sketch2.obj("assets/blender_cube.obj");
-    //gridShape.image = Sketch2.img("assets/cow.png");
-//    Obj.scale(gridShape, 0.5, 0.5, 0.5);
-    Obj cow = Sketch2.obj("assets/cow.obj");
-    Obj.fixNormal(cow);
-    cow.image = Sketch2.img("assets/cow.png");
+    Obj gridShape = Animals.cube();
+
+    // cattle
+    //gridShape = Sketch2.obj("assets/pig1/pig1.obj");
+    //gridShape.image = scale(Sketch2.img("assets/pig1/pig1.png"), 16);
+    //gridShape = Sketch2.obj("assets/sheep2/sheep2.obj");
+    //gridShape.image = scale(Sketch2.img("assets/sheep2/sheep2.png"), 16);
 
     screen = new Screen();
     int screenWidth = fullHd ? 1920 : 640;
@@ -56,11 +65,13 @@ public class Sketch3 {
     screen.image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
     screen.preferredSize = new Dimension(screenWidth, screenHeight);
     engine3d = new EngineFx().open(screen.image).setFarClip(FAR_CLIP).showFps();
-//    for (int y = -100; y <= 100; y += 40) {
-//      for (int x = -100; x <= 100; x += 40) {
-//        engine3d.shape(gridShape).translation(x, 1, y);
-//      }
-//    }
+    for (int y = -100; y <= 100; y += 40) {
+      for (int x = -100; x <= 100; x += 40) {
+        engine3d.shape(gridShape)
+//            .selfIllumination()
+            .translation(x, 0, y).rotation(0, 0, 0);
+      }
+    }
     for (int z = 0, i = 0; z < TILE_DIV; z++) {
       for (int x = 0; x < TILE_DIV; x++, i++) {
         tiles[i] = engine3d.shape(tileObjs[i]);
@@ -78,7 +89,7 @@ public class Sketch3 {
       photosphere.texture[i] = Math.min(Math.max(0, (y - 0.4) / 0.4), 1);
     }
     sphere = (Engine3d.Shape) engine3d.shape(photosphere).selfIllumination();//.rotation(0.25, 0, 0);
-    engine3d.light().translation(0, 3500, 5000);
+    engine3d.light().translation(2000, 3500, -5000);
     //engine3d.shape(gridShape).selfIllumination().translation(0, 35, 50);
 
     World world = new World();
@@ -169,15 +180,17 @@ public class Sketch3 {
   }
 
   public double surfaceY(double x, double z) {
-    double bx = x * BOX_SIZE / BOX_WIDTH % BOX_SIZE; if (bx < 0) bx += BOX_SIZE;
-    double bz = z * BOX_SIZE / BOX_WIDTH % BOX_SIZE; if (bz < 0) bz += BOX_SIZE;
-    int ix = (int) bx;
-    int iz = (int) bz;
+    double bx = x * BOX_SIZE / BOX_WIDTH;
+    double bz = z * BOX_SIZE / BOX_WIDTH;
+    double bxf = Math.floor(bx);
+    double bzf = Math.floor(bz);
+    int ix = Math.floorMod((int) bxf, BOX_SIZE);
+    int iz = Math.floorMod((int) bzf, BOX_SIZE);
     double py =
-        box[iz][ix] * (1 - bz + iz) * (1 - bx + ix) +
-        box[iz][(ix + 1) % BOX_SIZE] * (1 - bz + iz) * (bx - ix) +
-        box[(iz + 1) % BOX_SIZE][ix] * (bz - iz) * (1 - bx + ix) +
-        box[(iz + 1) % BOX_SIZE][(ix + 1) % BOX_SIZE] * (bz - iz) * (bx - ix);
+        box[iz][ix] * (1 - bz + bzf) * (1 - bx + bxf) +
+        box[iz][(ix + 1) % BOX_SIZE] * (1 - bz + bzf) * (bx - bxf) +
+        box[(iz + 1) % BOX_SIZE][ix] * (bz - bzf) * (1 - bx + bxf) +
+        box[(iz + 1) % BOX_SIZE][(ix + 1) % BOX_SIZE] * (bz - bzf) * (bx - bxf);
     return py * BOX_HEIGHT;
   }
 

@@ -140,7 +140,7 @@ public class Sketch2 {
     boolean useSphere = false;
     Obj sphere = null;
     if (useSphere) {
-      sphere = photosphere("assets/photosphere.jpg", 100);
+      sphere = photosphere("assets/photosphere.jpg", 80);
     }
 
     Screen screen = new Screen();
@@ -154,7 +154,7 @@ public class Sketch2 {
     renderNoise(background);
 //    Engine3d engine3d = new EngineFx().open(screen.image);
 //    Engine3d engine3d = new EngineNbs().open(screen.image);
-    Engine3d engine3d = new EngineDual().open(screen.image).showFps().setFarClip(50).background(background);
+    Engine3d engine3d = new EngineDual().open(screen.image).showFps().setFarClip(80).background(background);
     // teapot test
     engine3d.shape(teapot).translation(-10, 8, -40);
     engine3d.shape(teapot).translation(-10, 4, -40).rotation(0.0, 0.0, 0.1); // positive roll

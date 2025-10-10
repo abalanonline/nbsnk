@@ -52,9 +52,7 @@ public class FractalLandscape {
   }
 
   private static boolean test(double d) {
-    d %= 1;
-    if (d < 0) d += 1;
-    return d > 0.5;
+    return d - Math.floor(d) >= 0.5;
   }
 
   public static BufferedImage diamondSquareTexture(int size, long seed, double temperature) {

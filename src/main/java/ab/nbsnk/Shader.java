@@ -181,6 +181,7 @@ public class Shader {
   }
 
   public int pixelZbuffer() {
+    if (textureHeight > 0) return getTextureColor().rgb();
     double z = barycentricValue(v0z, v1z, v2z, barycentricCoordinates);
     return (int) (z * 0xFF) * 0x010101;
   }
