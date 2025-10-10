@@ -242,7 +242,7 @@ public class EngineNbs implements Engine3d {
     }
 
     @Override
-    public NodeNbs connect(Node node) {
+    public NodeNbs connect(Group node) {
       Set<NodeNbs> group = ((GroupNbs) node).groupNode;
       this.group.remove(this);
       this.group = group;

@@ -182,12 +182,6 @@ public class Sketch2 {
     Engine3d.Shape c0 = engine3d.shape(cube);
     c0.translation(-4, 0, -20);
     c0.rotation(0.0, 0.0, 10 / 360.0);
-    Engine3d.Group gFail = engine3d.group();
-    try {
-      gFail.connect(c0);
-      gFail = null;
-    } catch (Exception ignore) {}
-    if (gFail == null) throw new IllegalStateException("connected to obj");
 
     Engine3d.Group g0 = engine3d.group();
     g0.translation(4, 0, -20);

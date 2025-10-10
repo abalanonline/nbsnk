@@ -2,6 +2,7 @@ package ab.nbsnk;
 
 import ab.jnc3.Screen;
 import ab.nbsnk.nodes.FractalLandscape;
+import ab.nbsnk.nodes.Shapes;
 
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
@@ -21,11 +22,13 @@ public class Sketch3 {
   private Engine3d engine3d;
   private boolean systemExit;
   public static final double WALKING_SPEED = 7.0 * UPDATE_PERIOD_NS / 1_000_000_000; // 7 m/s
-  private Engine3d.Shape sphere;
+  private Engine3d.Group horizon;
+  private Engine3d.Group moon;
   private double[][] box;
   public static final int TILE_DIV = 32; // 1k
   private Engine3d.Shape[] tiles;
   private double[] tilexz;
+  private int tick;
 
   public static BufferedImage scale(BufferedImage image, int v) {
     int width = image.getWidth();
@@ -51,7 +54,7 @@ public class Sketch3 {
       Obj.interpolateNormal(tileObj);
       tileObj.image = boxTexture;
     }
-    Obj gridShape = Animals.cube();
+    Obj gridShape = new Shapes.Cube();
 
     // cattle
     //gridShape = Sketch2.obj("assets/pig1/pig1.obj");
@@ -65,6 +68,8 @@ public class Sketch3 {
     screen.image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
     screen.preferredSize = new Dimension(screenWidth, screenHeight);
     engine3d = new EngineFx().open(screen.image).setFarClip(FAR_CLIP).showFps();
+    horizon = engine3d.group();
+    moon = (Engine3d.Group) engine3d.group().connect(horizon);
     for (int y = -100; y <= 100; y += 40) {
       for (int x = -100; x <= 100; x += 40) {
         engine3d.shape(gridShape)
@@ -79,17 +84,12 @@ public class Sketch3 {
         tilexz[2 * i + 1] = (z + 0.5) * BOX_WIDTH / TILE_DIV;
       }
     }
-//    for (int i = 0; i < TILE_DIV * TILE_DIV; i++) engine3d.shape(gridShape).translation(tilexz[2 * i], 1, tilexz[2 * i + 1]);
-    //for (Obj tileObj : tileObjs) engine3d.shape(tileObj).translation(0, 0, -BOX_WIDTH);
-    //for (Obj tileObj : tileObjs) engine3d.shape(tileObj).translation(-BOX_WIDTH, 0, 0);
-    //for (Obj tileObj : tileObjs) engine3d.shape(tileObj).translation(-BOX_WIDTH, 0, -BOX_WIDTH);
-    Obj photosphere = Sketch2.photosphere(fullHd ? "assets/pano2.png" : "assets/sky_test.png", FAR_CLIP * 0.99);
-    for (int i = 0; i < photosphere.texture.length; i++) {
-      double y = photosphere.texture[++i]; // y = y0 * 0.3 + 0.5
-      photosphere.texture[i] = Math.min(Math.max(0, (y - 0.4) / 0.4), 1);
-    }
-    sphere = (Engine3d.Shape) engine3d.shape(photosphere).selfIllumination();//.rotation(0.25, 0, 0);
-    engine3d.light().translation(2000, 3500, -5000);
+    Obj skyObj = Animals.sky().scale(FAR_CLIP * 0.99);
+    //skyObj.image = Sketch2.img("assets/sky_test.png");
+    //skyObj.image = Sketch2.img("assets/pano2.png");
+    engine3d.shape(skyObj).selfIllumination().connect(horizon);
+    engine3d.shape(new Shapes.Sphere().scale(3)).selfIllumination().translation(0, 0, -FAR_CLIP * 0.95).connect(moon);
+    engine3d.light().translation(0, 0, -FAR_CLIP * 0.98).connect(moon);
     //engine3d.shape(gridShape).selfIllumination().translation(0, 35, 50);
 
     World world = new World();
@@ -161,6 +161,9 @@ public class Sketch3 {
         double d = 1 - Math.sqrt(xd * xd + zd * zd) / BOX_WIDTH * 2.1; // 2.0 - 2.5
         world.tilebr[i] = Math.max(0, d);
       }
+      world.mny = tick / 6000.0; // 1 spin per 60 sec
+      world.mnp = Math.sin(tick / 11000.0 * 2 * Math.PI) / 20 + 0.06; // 1 spin per 60 sec
+      tick++;
 
       // done
       renderLoop.world = world.clone();
@@ -204,6 +207,8 @@ public class Sketch3 {
     double prp;
     int[] tilexz;
     double[] tilebr;
+    double mny;
+    double mnp;
 
     @Override
     protected World clone() {
@@ -214,6 +219,8 @@ public class Sketch3 {
       world.prp = this.prp;
       world.tilexz = Arrays.copyOf(this.tilexz, this.tilexz.length);
       world.tilebr = Arrays.copyOf(this.tilebr, this.tilebr.length);
+      world.mny = this.mny;
+      world.mnp = this.mnp;
       return world;
     }
   }
@@ -226,7 +233,8 @@ public class Sketch3 {
         World world = this.world;
         double py = surfaceY(world.px, world.pz) + 1.8;
         engine3d.camera().translation(world.px, py, world.pz).rotation(world.pry, world.prp, 0);
-        if (sphere != null) sphere.translation(world.px, py, world.pz);
+        horizon.translation(world.px, py, world.pz);
+        moon.rotation(world.mny, world.mnp, 0);
         for (int i = 0; i < tiles.length; i++) {
           tiles[i].setColor((int) (world.tilebr[i] * 0xFF) * 0x010101 | 0xFF000000)
               .translation(world.tilexz[2 * i] * BOX_WIDTH, 0, world.tilexz[2 * i + 1] * BOX_WIDTH);

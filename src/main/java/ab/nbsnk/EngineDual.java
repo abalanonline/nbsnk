@@ -210,10 +210,10 @@ public class EngineDual implements Engine3d {
     }
 
     @Override
-    public NodeDual connect(Node node) {
-      NodeDual nodeDual = (NodeDual) node;
-      nodeLeft.connect(nodeDual.nodeLeft);
-      nodeRight.connect(nodeDual.nodeRight);
+    public NodeDual connect(Group node) {
+      NodeDual nodeDual = (GroupDual) node;
+      nodeLeft.connect((Group) nodeDual.nodeLeft);
+      nodeRight.connect((Group) nodeDual.nodeRight);
       return this;
     }
   }

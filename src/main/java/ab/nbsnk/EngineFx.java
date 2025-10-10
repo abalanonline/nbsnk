@@ -283,8 +283,8 @@ public class EngineFx implements Engine3d {
     }
 
     @Override
-    public NodeFx connect(Node node) {
-      connect((javafx.scene.Group) ((NodeFx) node).node);
+    public NodeFx connect(Group node) {
+      connect((javafx.scene.Group) ((GroupFx) node).node);
       return this;
     }
   }

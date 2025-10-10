@@ -18,6 +18,9 @@
 package ab.nbsnk;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -95,6 +98,14 @@ public class Obj {
     return obj;
   }
 
+  public static Obj load(InputStream stream) {
+    try {
+      return load(stream.readAllBytes());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   public static byte[] save(Obj obj) {
     StringBuilder s = new StringBuilder();
     for (int v = 0; v < obj.vertex.length / 3; v++) s.append(String.format("v %f %f %f\n",
@@ -119,6 +130,11 @@ public class Obj {
     double am = Math.sqrt(ax * ax + ay * ay + az * az); // magnitude
     double bm = Math.sqrt(bx * bx + by * by + bz * bz);
     return Math.acos(dot / (am * bm));
+  }
+
+  public Obj flatNormal() {
+    flatNormal(this);
+    return this;
   }
 
   public static void flatNormal(Obj obj) {
@@ -155,6 +171,11 @@ public class Obj {
       obj.face[i * 9 + 7] = i;
     }
     obj.normal = faceNormal;
+  }
+
+  public Obj interpolateNormal() {
+    interpolateNormal(this);
+    return this;
   }
 
   public static void interpolateNormal(Obj obj) {

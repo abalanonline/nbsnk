@@ -59,16 +59,16 @@ public interface Engine3d extends AutoCloseable {
     Node translation(double x, double y, double z);
 
     /**
-     * @param y, p, r an angle, in turns [0,1).
+     * @param yaw, pitch, roll an angle, in turns [0,1).
      */
-    Node rotation(double y, double p, double r);
+    Node rotation(double yaw, double pitch, double roll);
 
     /**
      * Use the current transformation as a pivot and reset the values.
      */
     Node setPivot();
 
-    Node connect(Node node);
+    Node connect(Group node);
 
   }
 
