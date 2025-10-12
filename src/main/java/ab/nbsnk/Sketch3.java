@@ -88,7 +88,7 @@ public class Sketch3 {
     //skyObj.image = Sketch2.img("assets/sky_test.png");
     //skyObj.image = Sketch2.img("assets/pano2.png");
     engine3d.shape(skyObj).selfIllumination().connect(horizon);
-    engine3d.shape(new Shapes.Sphere().scale(3)).selfIllumination().translation(0, 0, -FAR_CLIP * 0.95).connect(moon);
+    engine3d.shape(new Shapes.Icosphere().scale(3)).selfIllumination().translation(0, 0, -FAR_CLIP * 0.95).connect(moon);
     engine3d.light().translation(0, 0, -FAR_CLIP * 0.98).connect(moon);
     //engine3d.shape(gridShape).selfIllumination().translation(0, 35, 50);
 
@@ -201,13 +201,13 @@ public class Sketch3 {
    * The world contains modifiable variables to be double buffered to the render loop.
    */
   private static class World {
-    double px;
+    double px; // player xz
     double pz;
-    double pry;
+    double pry; // player yaw pitch
     double prp;
-    int[] tilexz;
-    double[] tilebr;
-    double mny;
+    int[] tilexz; // tile xz adjustment
+    double[] tilebr; // tile brightness
+    double mny; // moon yaw pitch
     double mnp;
 
     @Override

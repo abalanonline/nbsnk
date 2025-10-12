@@ -94,6 +94,7 @@ public class EngineNbs implements Engine3d {
 
   private static void dfs(Set<NodeNbs> nodes, Matrix tm, Map<NodeNbs, Matrix> map) {
     for (NodeNbs node : nodes) {
+      if (!node.visible) continue;
       Matrix t = node.multiply(tm);
       if (node instanceof GroupNbs) {
         dfs(((GroupNbs) node).groupNode, t, map);
@@ -179,6 +180,7 @@ public class EngineNbs implements Engine3d {
     private double rx;
     private double ry;
     private double rz;
+    private boolean visible = true;
 
     private NodeNbs() {
       this.group = root;
@@ -247,6 +249,12 @@ public class EngineNbs implements Engine3d {
       this.group.remove(this);
       this.group = group;
       this.group.add(this);
+      return this;
+    }
+
+    @Override
+    public NodeNbs setVisible(boolean value) {
+      visible = value;
       return this;
     }
   }

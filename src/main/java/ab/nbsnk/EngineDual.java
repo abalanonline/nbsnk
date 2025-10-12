@@ -216,6 +216,13 @@ public class EngineDual implements Engine3d {
       nodeRight.connect((Group) nodeDual.nodeRight);
       return this;
     }
+
+    @Override
+    public NodeDual setVisible(boolean value) {
+      nodeLeft.setVisible(value);
+      nodeRight.setVisible(value);
+      return this;
+    }
   }
 
   private static class ShapeDual extends NodeDual implements Shape {

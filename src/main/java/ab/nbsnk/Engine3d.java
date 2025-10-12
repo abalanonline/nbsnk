@@ -70,6 +70,8 @@ public interface Engine3d extends AutoCloseable {
 
     Node connect(Group node);
 
+    Node setVisible(boolean value);
+
   }
 
   interface Shape extends Node {

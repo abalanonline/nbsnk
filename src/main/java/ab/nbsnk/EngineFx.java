@@ -287,6 +287,12 @@ public class EngineFx implements Engine3d {
       connect((javafx.scene.Group) ((GroupFx) node).node);
       return this;
     }
+
+    @Override
+    public NodeFx setVisible(boolean value) {
+      node.setVisible(value);
+      return this;
+    }
   }
 
   private class ShapeFx extends NodeFx implements Shape {
