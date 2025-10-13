@@ -27,6 +27,13 @@ public class Col {
     return this;
   }
 
+  public Col mul(double v) {
+    this.r *= v;
+    this.g *= v;
+    this.b *= v;
+    return this;
+  }
+
   public Col mul(Col col) {
     this.r *= col.r;
     this.g *= col.g;

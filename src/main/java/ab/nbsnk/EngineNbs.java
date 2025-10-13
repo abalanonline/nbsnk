@@ -298,7 +298,7 @@ public class EngineNbs implements Engine3d {
     }
 
     @Override
-    public ShapeNbs selfIllumination() {
+    public ShapeNbs selfIllumination(int color) {
       selfIllumination = true;
       return this;
     }

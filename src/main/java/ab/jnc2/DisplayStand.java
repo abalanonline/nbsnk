@@ -90,10 +90,6 @@ public class DisplayStand implements AutoCloseable {
 
   public Scene getScene() {
     // TODO: improve this method when necessary
-    PhongMaterial material = new PhongMaterial();
-    material.setDiffuseColor(Color.DARKGRAY);
-    material.setSpecularColor(Color.WHITE);
-    meshView.setMaterial(material);
     meshView.getTransforms().addAll(rx, ry, rz, rd);
 
     Group root = new Group(meshView);

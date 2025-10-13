@@ -374,4 +374,28 @@ public class Animals {
     return obj.flatNormal().interpolateNormal();
   }
 
+  public static Obj apple() {
+    Obj obj = Sketch2.obj("assets/apple.obj"); // width 1.15
+    obj.image = Sketch2.img("assets/apple_texture.png");
+//    double x0 = 0;
+//    double x1 = 0;
+//    double yx0 = 0;
+//    double yx1 = 0;
+//    double z0 = 0;
+//    double z1 = 0;
+//    double yz0 = 0;
+//    double yz1 = 0;
+//    for (int i = 0; i < obj.vertex.length;) {
+//      double x = obj.vertex[i++];
+//      double y = obj.vertex[i++];
+//      double z = obj.vertex[i++];
+//      if (x < -5) continue;
+//      if (x0 > x) { x0 = x; yx0 = y; }
+//      if (x1 < x) { x1 = x; yx1 = y; }
+//      if (z0 > z) { z0 = z; yz0 = y; }
+//      if (z1 < z) { z1 = z; yz1 = y; }
+//    }
+    return obj.translate(0, -0.972396, 0);
+  }
+
 }

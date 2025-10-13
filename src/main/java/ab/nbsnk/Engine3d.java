@@ -76,9 +76,9 @@ public interface Engine3d extends AutoCloseable {
 
   interface Shape extends Node {
 
-    Node setColor(int color);
+    Shape setColor(int color);
 
-    Node selfIllumination();
+    Shape selfIllumination(int color);
 
   }
 
@@ -86,7 +86,7 @@ public interface Engine3d extends AutoCloseable {
 
   interface Light extends Node {
 
-    Node setColor(int color);
+    Light setColor(int color);
 
   }
 

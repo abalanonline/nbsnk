@@ -17,6 +17,7 @@
 
 package ab.nbsnk;
 
+import ab.nbsnk.nodes.Col;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.PerspectiveCamera;
@@ -52,6 +53,14 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 
+/**
+ * JavaFx limitations:
+ * Always Phong, no way to switch to flat shading
+ * No light attenuation with distance
+ * No shadows
+ * Missing setSelfIlluminationColor method that can change the brightness or color
+ * of setSelfIlluminationMap the similar way as setDiffuseColor can alter setDiffuseMap
+ */
 public class EngineFx implements Engine3d {
 
   private int imageWidth;
@@ -170,7 +179,7 @@ public class EngineFx implements Engine3d {
     snapshot();
     int[] data = new int[imageWidth * imageHeight];
     JavaFx.App.writableImage.getPixelReader()
-        .getPixels(0, 0, imageWidth, imageHeight, WritablePixelFormat.getIntArgbPreInstance(), data, 0, imageWidth);
+        .getPixels(0, 0, imageWidth, imageHeight, PixelFormat.getIntArgbPreInstance(), data, 0, imageWidth);
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, data);
     if (fpsMeter != null) {
       String fps = String.format("fps: %.0f", fpsMeter.getFps());
@@ -324,8 +333,23 @@ public class EngineFx implements Engine3d {
     }
 
     @Override
-    public ShapeFx selfIllumination() {
-      material.setSelfIlluminationMap(material.getDiffuseMap());
+    public ShapeFx selfIllumination(int color) {
+      Image image = material.getDiffuseMap();
+      material.setDiffuseMap(null);
+      if ((color & 0xFFFFFF) != 0xFFFFFF) {
+        Col mul = new Col(color);
+        int width = (int) image.getWidth();
+        int height = (int) image.getHeight();
+        int[] data = new int[width * height];
+        image.getPixelReader().getPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
+        for (int i = 0; i < data.length; i++) {
+          data[i] = new Col(data[i]).mul(mul).rgb();
+        }
+        WritableImage writableImage = new WritableImage(width, height);
+        writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
+        image = writableImage;
+      }
+      material.setSelfIlluminationMap(image);
       material.setDiffuseColor(Color.BLACK);
       return this;
     }

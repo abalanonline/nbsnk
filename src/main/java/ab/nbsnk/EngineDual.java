@@ -239,9 +239,9 @@ public class EngineDual implements Engine3d {
     }
 
     @Override
-    public ShapeDual selfIllumination() {
-      ((Shape) this.nodeLeft).selfIllumination();
-      ((Shape) this.nodeRight).selfIllumination();
+    public ShapeDual selfIllumination(int color) {
+      ((Shape) this.nodeLeft).selfIllumination(color);
+      ((Shape) this.nodeRight).selfIllumination(color);
       return this;
     }
   }

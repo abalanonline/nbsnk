@@ -1,27 +1,37 @@
 package ab.nbsnk;
 
 import ab.jnc3.Screen;
+import ab.nbsnk.nodes.Col;
 import ab.nbsnk.nodes.FractalLandscape;
+import ab.nbsnk.nodes.Pnt;
 import ab.nbsnk.nodes.Shapes;
 
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class Sketch3 {
 
   private static final int UPDATE_PERIOD_NS = 10_000_000;
+  private static final double UPDATE_PERIOD_S = UPDATE_PERIOD_NS / 1_000_000_000.0;
   public static final double MOUSE_SENSITIVITY = 1 / 10000.0;
   public static final int BOX_SIZE = 512;
   public static final int BOX_WIDTH = 500;
   public static final int BOX_HEIGHT = 100;
   public static final int FAR_CLIP = BOX_WIDTH / 2;
+  public static final double GRAVITY = 1.625;
   private Screen screen;
   private Engine3d engine3d;
   private boolean systemExit;
-  public static final double WALKING_SPEED = 7.0 * UPDATE_PERIOD_NS / 1_000_000_000; // 7 m/s
+  public static final double WALKING_SPEED = 7.0; // 7 m/s
   private Engine3d.Group horizon;
   private Engine3d.Group moon;
   private double[][] box;
@@ -29,14 +39,6 @@ public class Sketch3 {
   private Engine3d.Shape[] tiles;
   private double[] tilexz;
   private int tick;
-
-  public static BufferedImage scale(BufferedImage image, int v) {
-    int width = image.getWidth();
-    int height = image.getHeight();
-    BufferedImage scaled = new BufferedImage(width * v, height * v, BufferedImage.TYPE_INT_RGB);
-    scaled.getGraphics().drawImage(image, 0, 0, width * v, height * v, null);
-    return scaled;
-  }
 
   private void run() {
     boolean fullHd = false;
@@ -87,21 +89,22 @@ public class Sketch3 {
     Obj skyObj = Animals.sky().scale(FAR_CLIP * 0.99);
     //skyObj.image = Sketch2.img("assets/sky_test.png");
     //skyObj.image = Sketch2.img("assets/pano2.png");
-    engine3d.shape(skyObj).selfIllumination().connect(horizon);
-    engine3d.shape(new Shapes.Icosphere().scale(3)).selfIllumination().translation(0, 0, -FAR_CLIP * 0.95).connect(moon);
+    engine3d.shape(skyObj).selfIllumination(-1).connect(horizon);
+    engine3d.shape(new Shapes.Icosphere().scale(3)).selfIllumination(-1).translation(0, 0, -FAR_CLIP * 0.95).connect(moon);
     engine3d.light().translation(0, 0, -FAR_CLIP * 0.98).connect(moon);
     //engine3d.shape(gridShape).selfIllumination().translation(0, 35, 50);
 
-    World world = new World();
-    world.tilexz = new int[TILE_DIV * TILE_DIV * 2];
-    world.tilebr = new double[TILE_DIV * TILE_DIV];
+    Projectile apple = new Projectile(5, a -> engine3d.shape(new Shapes.Icosphere().scale(0.07 * a))
+        .selfIllumination(new Col(0xFFCA4E21).mul(a).rgb()));
+    apple.light = engine3d.light().setColor(0xFFBF3720);
+    apple.node = engine3d.shape(Animals.apple().scale(0.08)).selfIllumination(-1);
+
     screen.gameController = true;
     boolean[] mouseButton = new boolean[10];
     Queue<String> keyListener = new LinkedBlockingQueue<>();
     screen.keyListener = keyListener::add;
 
     RenderLoop renderLoop = new RenderLoop();
-    renderLoop.world = world.clone();
     Thread renderLoopThread = new Thread(renderLoop);
     renderLoopThread.start();
 
@@ -109,7 +112,12 @@ public class Sketch3 {
     boolean[] gamepadButton = new boolean[4];
     int[] gamepadAxis = new int[2];
     // -------------------------------- physics loop --------------------------------
+    double playerX = 0;
+    double playerZ = 0;
     while (!systemExit) {
+      LinkedHashMap<Engine3d.Node, Tr> world = new LinkedHashMap<>();
+      boolean[] mouseClick = new boolean[10];
+      boolean[] mouseRelease = new boolean[10];
       while (!keyListener.isEmpty()) {
         String key = keyListener.remove();
         switch (key) {
@@ -128,6 +136,7 @@ public class Sketch3 {
           int button = key.charAt(7) - '0';
           boolean buttonOn = key.charAt(5) == '+';
           if (bw == 'B') {
+            (buttonOn ? mouseClick : mouseRelease)[button] = true;
             mouseButton[button] = buttonOn;
           }
           if (bw <= '9') {
@@ -141,32 +150,45 @@ public class Sketch3 {
 //      yLimit = 0.25;
       if (gamepadAxis[1] > yLimit / MOUSE_SENSITIVITY) gamepadAxis[1] = (int) (yLimit / MOUSE_SENSITIVITY);
       if (gamepadAxis[1] < -yLimit / MOUSE_SENSITIVITY) gamepadAxis[1] = (int) (-yLimit / MOUSE_SENSITIVITY);
-      world.pry = gamepadAxis[0] * MOUSE_SENSITIVITY;
-      world.prp = gamepadAxis[1] * MOUSE_SENSITIVITY;
-      double s = Math.sin(world.pry * 2 * Math.PI) * WALKING_SPEED;
-      double c = Math.cos(world.pry * 2 * Math.PI) * WALKING_SPEED;
-      if (gamepadButton[0]) { world.px -= c; world.pz -= s; }
-      if (gamepadButton[1]) { world.px -= s; world.pz += c; }
-      if (gamepadButton[2]) { world.px += s; world.pz -= c; }
-      if (gamepadButton[3]) { world.px += c; world.pz += s; }
+      double playerYaw = gamepadAxis[0] * MOUSE_SENSITIVITY;
+      double playerPitch = gamepadAxis[1] * MOUSE_SENSITIVITY;
+      double s = Math.sin(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
+      double c = Math.cos(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
+      if (gamepadButton[0]) { playerX -= c; playerZ -= s; }
+      if (gamepadButton[1]) { playerX -= s; playerZ += c; }
+      if (gamepadButton[2]) { playerX += s; playerZ -= c; }
+      if (gamepadButton[3]) { playerX += c; playerZ += s; }
+      double playerY = surfaceY(playerX, playerZ) + 1.8;
+      apple.run(UPDATE_PERIOD_S);
+      if (mouseButton[1]) {
+        s /= WALKING_SPEED * UPDATE_PERIOD_S;
+        c /= WALKING_SPEED * UPDATE_PERIOD_S;
+        apple.launch(
+            playerX + s * 1.4 + c / 2, playerY,
+            playerZ - c * 1.4 + s / 2, playerYaw, playerPitch, 20); // 15-20 m/s is pretty average
+      }
 
       for (int i = 0; i < tiles.length; i++) {
         // px = tx + i * BW
-        int xi = (int) Math.round((world.px - tilexz[2 * i]) / BOX_WIDTH);
-        int zi = (int) Math.round((world.pz - tilexz[2 * i + 1]) / BOX_WIDTH);
-        world.tilexz[2 * i] = xi;
-        world.tilexz[2 * i + 1] = zi;
-        double xd = tilexz[2 * i] + BOX_WIDTH * xi - world.px;
-        double zd = tilexz[2 * i + 1] + BOX_WIDTH * zi - world.pz;
+        int xi = (int) Math.round((playerX - tilexz[2 * i]) / BOX_WIDTH);
+        int zi = (int) Math.round((playerZ - tilexz[2 * i + 1]) / BOX_WIDTH);
+        double xd = tilexz[2 * i] + BOX_WIDTH * xi - playerX;
+        double zd = tilexz[2 * i + 1] + BOX_WIDTH * zi - playerZ;
         double d = 1 - Math.sqrt(xd * xd + zd * zd) / BOX_WIDTH * 2.1; // 2.0 - 2.5
-        world.tilebr[i] = Math.max(0, d);
+        double br = Math.max(0, d);
+        world.put(tiles[i], new Tr(xi * BOX_WIDTH, 0, zi * BOX_WIDTH, (int) (br * 0xFF) * 0x010101 | 0xFF000000));
       }
-      world.mny = tick / 6000.0; // 1 spin per 60 sec
-      world.mnp = Math.sin(tick / 11000.0 * 2 * Math.PI) / 20 + 0.06; // 1 spin per 60 sec
+      double mny = tick / 6000.0; // 1 spin per 60 sec
+      double mnp = Math.sin(tick / 11000.0 * 2 * Math.PI) / 20 + 0.06; // 1 spin per 60 sec
       tick++;
 
       // done
-      renderLoop.world = world.clone();
+      world.put(engine3d.camera(), new Tr(playerX, playerY, playerZ, playerYaw, playerPitch, 0));
+      world.put(horizon, new Tr(playerX, playerY, playerZ, 0, 0, 0));
+      world.put(moon, new Tr(0, 0, 0, mny, mnp, 0));
+      apple.worldUpdate(world);
+
+      renderLoop.world = world;
       updateNs += UPDATE_PERIOD_NS;
       long ns = System.nanoTime();
       if (ns < updateNs) {
@@ -180,6 +202,69 @@ public class Sketch3 {
 
   public static void main(String[] args) {
     new Sketch3().run();
+  }
+
+  private class Particle {
+    Pnt p = new Pnt();
+    Pnt v = new Pnt();
+    Pnt a = new Pnt();
+    boolean visible;
+    Engine3d.Node node;
+    public Particle run(double time) {
+      v.add(a, time);
+      p.add(v, time);
+      return this;
+    }
+  }
+
+  private class Projectile extends Particle {
+    private final static double TRAIL_PERIOD = 0.2;
+    Engine3d.Node[] trail;
+    Pnt[] trailPnt;
+    Engine3d.Node light;
+    double time;
+    int timeInt;
+    public Projectile() {
+      this(0, a -> null);
+    }
+    public Projectile(int trail, Function<Double, Engine3d.Node> supplier) {
+      this.trail = new Engine3d.Node[trail];
+      this.trailPnt = new Pnt[trail];
+      for (int i = 0; i < trail; i++) {
+        this.trail[i] = supplier.apply((trail - i) / (double) trail);
+        this.trailPnt[i] = new Pnt();
+      }
+    }
+    void launch(double x, double y, double z, double yaw, double pitch, double speed) {
+      p = new Pnt(x, y, z);
+      Arrays.fill(trailPnt, new Pnt(0, -1000, 0));
+      double c = Math.cos(pitch * 2 * Math.PI) * speed;
+      v = new Pnt(Math.sin(yaw * 2 * Math.PI) * c, Math.sin(pitch * 2 * Math.PI) * speed, -Math.cos(yaw * 2 * Math.PI) * c);
+      a = new Pnt(0, -GRAVITY, 0);
+      time = 0;
+      timeInt = 0;
+    }
+
+    @Override
+    public Particle run(double time) {
+      this.time += time;
+      int t = (int) Math.floor(this.time / TRAIL_PERIOD);
+      if (t > timeInt) {
+        timeInt = t;
+        for (int i = trailPnt.length - 1; i > 0; i--) trailPnt[i] = trailPnt[i - 1];
+        trailPnt[0] = p.clone();
+      }
+      super.run(time);
+      return this;
+    }
+
+    void worldUpdate(LinkedHashMap<Engine3d.Node, Tr> world) {
+      double a = System.nanoTime() / 1_000_000_000.0 * 4;
+      Tr tr = new Tr(p.x, p.y, p.z, 0, a, 0);
+      world.put(node, tr);
+      if (light != null) world.put(light, tr);
+      for (int i = 0; i < trail.length; i++) world.put(trail[i], new Tr(trailPnt[i].x, trailPnt[i].y, trailPnt[i].z));
+    }
   }
 
   public double surfaceY(double x, double z) {
@@ -197,48 +282,56 @@ public class Sketch3 {
     return py * BOX_HEIGHT;
   }
 
-  /**
-   * The world contains modifiable variables to be double buffered to the render loop.
-   */
-  private static class World {
-    double px; // player xz
-    double pz;
-    double pry; // player yaw pitch
-    double prp;
-    int[] tilexz; // tile xz adjustment
-    double[] tilebr; // tile brightness
-    double mny; // moon yaw pitch
-    double mnp;
+  private static class Tr implements Consumer<Engine3d.Node> {
+    double x;
+    double y;
+    double z;
+    double yaw;
+    double pitch;
+    double roll;
+    Integer color;
+
+    public Tr(double x, double y, double z, double yaw, double pitch, double roll) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      this.yaw = yaw;
+      this.pitch = pitch;
+      this.roll = roll;
+    }
+
+    public Tr(double x, double y, double z) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+    }
+
+    public Tr(double x, double y, double z, int color) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      this.color = color;
+    }
 
     @Override
-    protected World clone() {
-      World world = new World();
-      world.px = this.px;
-      world.pz = this.pz;
-      world.pry = this.pry;
-      world.prp = this.prp;
-      world.tilexz = Arrays.copyOf(this.tilexz, this.tilexz.length);
-      world.tilebr = Arrays.copyOf(this.tilebr, this.tilebr.length);
-      world.mny = this.mny;
-      world.mnp = this.mnp;
-      return world;
+    public void accept(Engine3d.Node node) {
+      if (color != null && node instanceof Engine3d.Light) ((Engine3d.Light) node).setColor(color);
+      if (color != null && node instanceof Engine3d.Shape) ((Engine3d.Shape) node).setColor(color);
+      node.translation(x, y, z).rotation(yaw, pitch, roll);
     }
   }
 
   private class RenderLoop implements Runnable {
-    World world;
+    Map<Engine3d.Node, Tr> world = Collections.emptyMap();
     @Override
     public void run() {
       while (!systemExit) {
-        World world = this.world;
-        double py = surfaceY(world.px, world.pz) + 1.8;
-        engine3d.camera().translation(world.px, py, world.pz).rotation(world.pry, world.prp, 0);
-        horizon.translation(world.px, py, world.pz);
-        moon.rotation(world.mny, world.mnp, 0);
-        for (int i = 0; i < tiles.length; i++) {
-          tiles[i].setColor((int) (world.tilebr[i] * 0xFF) * 0x010101 | 0xFF000000)
-              .translation(world.tilexz[2 * i] * BOX_WIDTH, 0, world.tilexz[2 * i + 1] * BOX_WIDTH);
+        Map<Engine3d.Node, Tr> world = this.world;
+        if (world.isEmpty()) {
+          try { Thread.sleep(1); } catch (InterruptedException e) { break; }
+          continue;
         }
+        world.forEach((key, value) -> value.accept(key));
         engine3d.update();
         screen.update();
       }
