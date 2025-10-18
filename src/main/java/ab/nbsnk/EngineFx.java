@@ -70,7 +70,7 @@ public class EngineFx implements Engine3d {
   private FpsMeter fpsMeter;
   private Map<BufferedImage, Image> imageCache = new HashMap<>();
 
-  private static TriangleMesh loadObj(Obj obj) {
+  public static TriangleMesh loadObj(Obj obj) {
     int[] faces = Arrays.copyOf(obj.face, obj.face.length);
     float[] points = new float[obj.vertex.length];
     for (int i = 0; i < points.length; i += 3) {

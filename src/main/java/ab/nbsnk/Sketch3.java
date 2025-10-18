@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2025 Aleksei Balan
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package ab.nbsnk;
 
 import ab.jnc3.Screen;
@@ -41,6 +58,7 @@ public class Sketch3 {
   private int tick;
 
   private void run() {
+    long nanoTime = System.nanoTime();
     boolean fullHd = false;
 //    fullHd = true;
     box = FractalLandscape.diamondSquare(BOX_SIZE, 3);
@@ -114,6 +132,7 @@ public class Sketch3 {
     // -------------------------------- physics loop --------------------------------
     double playerX = 0;
     double playerZ = 0;
+    System.out.println((System.nanoTime() - nanoTime) / 1_000_000);
     while (!systemExit) {
       LinkedHashMap<Engine3d.Node, Tr> world = new LinkedHashMap<>();
       boolean[] mouseClick = new boolean[10];
@@ -152,20 +171,22 @@ public class Sketch3 {
       if (gamepadAxis[1] < -yLimit / MOUSE_SENSITIVITY) gamepadAxis[1] = (int) (-yLimit / MOUSE_SENSITIVITY);
       double playerYaw = gamepadAxis[0] * MOUSE_SENSITIVITY;
       double playerPitch = gamepadAxis[1] * MOUSE_SENSITIVITY;
-      double s = Math.sin(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
-      double c = Math.cos(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
-      if (gamepadButton[0]) { playerX -= c; playerZ -= s; }
-      if (gamepadButton[1]) { playerX -= s; playerZ += c; }
-      if (gamepadButton[2]) { playerX += s; playerZ -= c; }
-      if (gamepadButton[3]) { playerX += c; playerZ += s; }
+      double ws = Math.sin(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
+      double wc = Math.cos(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
+      if (gamepadButton[0]) { playerX -= wc; playerZ -= ws; }
+      if (gamepadButton[1]) { playerX -= ws; playerZ += wc; }
+      if (gamepadButton[2]) { playerX += ws; playerZ -= wc; }
+      if (gamepadButton[3]) { playerX += wc; playerZ += ws; }
       double playerY = surfaceY(playerX, playerZ) + 1.8;
       apple.run(UPDATE_PERIOD_S);
       if (mouseButton[1]) {
-        s /= WALKING_SPEED * UPDATE_PERIOD_S;
-        c /= WALKING_SPEED * UPDATE_PERIOD_S;
+        double s = Math.sin(playerYaw * 2 * Math.PI);
+        double c = Math.cos(playerYaw * 2 * Math.PI);
+        double forward = 1.1;
+        double right = 0.4;
         apple.launch(
-            playerX + s * 1.4 + c / 2, playerY,
-            playerZ - c * 1.4 + s / 2, playerYaw, playerPitch, 20); // 15-20 m/s is pretty average
+            playerX + s * forward + c * right, playerY + 0.1,
+            playerZ - c * forward + s * right, playerYaw, playerPitch, 20); // 15-20 m/s is pretty average
       }
 
       for (int i = 0; i < tiles.length; i++) {
@@ -201,6 +222,7 @@ public class Sketch3 {
   }
 
   public static void main(String[] args) {
+    //try { Thread.sleep(20000); } catch (InterruptedException ignore) {}
     new Sketch3().run();
   }
 
@@ -231,7 +253,7 @@ public class Sketch3 {
       this.trail = new Engine3d.Node[trail];
       this.trailPnt = new Pnt[trail];
       for (int i = 0; i < trail; i++) {
-        this.trail[i] = supplier.apply((trail - i) / (double) trail);
+        this.trail[i] = supplier.apply((trail + 1 - i) / (double) (trail + 1));
         this.trailPnt[i] = new Pnt();
       }
     }
