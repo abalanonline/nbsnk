@@ -415,4 +415,34 @@ public class Animals {
     return obj.translate(0, -0.972396, 0);
   }
 
+  public static BufferedImage appleIcon() {
+    return imageBase64(
+        "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IB2cksfwAAAARnQU1BAACx\n" +
+        "jwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAADNQTFRF\n" +
+        "AAAAJQsZKQwbMg4eTwgaJhsmpwsaITM0uhQcHFYZmDxA7CYmCm4UrmRCIpQS/XZe/rWMEU2NXAAA\n" +
+        "AAF0Uk5TAEDm2GYAAABiSURBVBjThY9BEoAgCACBjCgs/f9rQ7HULu3J3VFRgAYa8IIn7jHO4bq2\n" +
+        "OQwbiGg9yhVE7qoqIbCIBHLPyVLJwlRCytp4gn6C/gTAwZc6Vpoze7AiNrG7HbI3iXn/Czp1fQOL\n" +
+        "jQU1SCNezQAAAABJRU5ErkJggg==");
+  }
+
+  public static BufferedImage starIcon() {
+    return imageBase64(
+        "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IB2cksfwAAAARnQU1BAACx\n" +
+        "jwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAADNQTFRF\n" +
+        "AAAAKgwbMg4ePhIgSBQkWRUm9IYE+ZwB+qkB/bcB/cIB88dV+ssm/9UP/tYR/udl/ux2P+IvxQAA\n" +
+        "AAF0Uk5TAEDm2GYAAABrSURBVBjTVY/RGsAQCEaVNmHo/Z92kc/Wueo/KoRgIAZHHA94IewEsDRn\n" +
+        "/gJQMTEr1MMxRKQpImO2AbeDjRH7/BmO+w7qu2MLLLqSs4pkI6g5Ed29ZxPQNevrby5LQM0XrVUx\n" +
+        "12kAzidm+QJjYwTpTUBikgAAAABJRU5ErkJggg==");
+  }
+
+  public static BufferedImage heartIcon() {
+    return imageBase64(
+        "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IB2cksfwAAAARnQU1BAACx\n" +
+        "jwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAADNQTFRF\n" +
+        "AAAALA4dMxEiNRIjNRIjNxIjORQlrgsitAshsQ4h5xkp5xkr6Bsq6Bwp6Bws/XJg/XVio3Wj6gAA\n" +
+        "AAF0Uk5TAEDm2GYAAAB1SURBVBjTdU8BDgIxCMNbKq4gd/9/rR1nzEVjl7C0QFPMfgFg6BtC8zsF\n" +
+        "GJL5xOLBfZfS9SEFPIqZRb1sIY7UNIPMmi3EIiWjyhamaESFFtvD4MFuFx1njqkt2ZaPd7LhchHH\n" +
+        "J+u2fHy7pvdr/5zB14U3+4cXSn0FPmvkHMcAAAAASUVORK5CYII=");
+  }
+
 }

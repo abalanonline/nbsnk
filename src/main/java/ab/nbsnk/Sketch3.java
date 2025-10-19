@@ -24,16 +24,18 @@ import ab.nbsnk.nodes.Pnt;
 import ab.nbsnk.nodes.Shapes;
 
 import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class Sketch3 {
 
@@ -56,6 +58,11 @@ public class Sketch3 {
   private Engine3d.Shape[] tiles;
   private double[] tilexz;
   private int tick;
+  private BufferedImage appleIcon;
+  private int appleCount = 16;
+  private BufferedImage starIcon;
+  private int starCount = 0;
+  List<Particle> targets = new ArrayList<>();
 
   private void run() {
     long nanoTime = System.nanoTime();
@@ -92,11 +99,18 @@ public class Sketch3 {
     moon = (Engine3d.Group) engine3d.group().connect(horizon);
     for (int y = -100; y <= 100; y += 40) {
       for (int x = -100; x <= 100; x += 40) {
-        engine3d.shape(gridShape)
+        Particle particle = new Particle(0);
+        particle.node = engine3d.shape(gridShape);
+        particle.p = new Pnt(x, 0, y);
+        particle.radius = 1;
+        targets.add(particle);
+//        engine3d.shape(gridShape)
 //            .selfIllumination()
-            .translation(x, 0, y).rotation(0, 0, 0);
+//            .translation(x, 0, y).rotation(0, 0, 0);
       }
     }
+    appleIcon = Animals.appleIcon();
+    starIcon = Animals.starIcon();
     for (int z = 0, i = 0; z < TILE_DIV; z++) {
       for (int x = 0; x < TILE_DIV; x++, i++) {
         tiles[i] = engine3d.shape(tileObjs[i]);
@@ -112,8 +126,10 @@ public class Sketch3 {
     engine3d.light().translation(0, 0, -FAR_CLIP * 0.98).connect(moon);
     //engine3d.shape(gridShape).selfIllumination().translation(0, 35, 50);
 
-    Projectile apple = new Projectile(5, a -> engine3d.shape(new Shapes.Icosphere().scale(0.07 * a))
+    Projectile apple = new Projectile(GRAVITY, 5, a -> engine3d.shape(new Shapes.Icosphere().scale(0.07 * a))
         .selfIllumination(new Col(0xFFCA4E21).mul(a).rgb()));
+    apple.rotatePitch = 4;
+    apple.radius = 0.09;
     apple.light = engine3d.light().setColor(0xFFBF3720);
     apple.node = engine3d.shape(Animals.apple().scale(0.08)).selfIllumination(-1);
 
@@ -130,8 +146,9 @@ public class Sketch3 {
     boolean[] gamepadButton = new boolean[4];
     int[] gamepadAxis = new int[2];
     // -------------------------------- physics loop --------------------------------
-    double playerX = 0;
-    double playerZ = 0;
+//    double playerX = 0;
+//    double playerZ = 0;
+    Particle player = new Particle(GRAVITY);
     System.out.println((System.nanoTime() - nanoTime) / 1_000_000);
     while (!systemExit) {
       LinkedHashMap<Engine3d.Node, Tr> world = new LinkedHashMap<>();
@@ -173,28 +190,31 @@ public class Sketch3 {
       double playerPitch = gamepadAxis[1] * MOUSE_SENSITIVITY;
       double ws = Math.sin(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
       double wc = Math.cos(playerYaw * 2 * Math.PI) * WALKING_SPEED * UPDATE_PERIOD_S;
-      if (gamepadButton[0]) { playerX -= wc; playerZ -= ws; }
-      if (gamepadButton[1]) { playerX -= ws; playerZ += wc; }
-      if (gamepadButton[2]) { playerX += ws; playerZ -= wc; }
-      if (gamepadButton[3]) { playerX += wc; playerZ += ws; }
-      double playerY = surfaceY(playerX, playerZ) + 1.8;
+      if (gamepadButton[0]) { player.p.x -= wc; player.p.z -= ws; }
+      if (gamepadButton[1]) { player.p.x -= ws; player.p.z += wc; }
+      if (gamepadButton[2]) { player.p.x += ws; player.p.z -= wc; }
+      if (gamepadButton[3]) { player.p.x += wc; player.p.z += ws; }
+      player.run(UPDATE_PERIOD_S);
+      //double playerY = surfaceY(player.p.x, player.p.z) + 1.8;
       apple.run(UPDATE_PERIOD_S);
-      if (mouseButton[1]) {
+      if (mouseClick[1]) appleCount--;
+      if (mouseClick[3] && player.p.y == surfaceY(player.p.x, player.p.z)) player.v.y = 2;
+      if (appleCount >= 0 && mouseButton[1]) {
         double s = Math.sin(playerYaw * 2 * Math.PI);
         double c = Math.cos(playerYaw * 2 * Math.PI);
         double forward = 1.1;
         double right = 0.4;
         apple.launch(
-            playerX + s * forward + c * right, playerY + 0.1,
-            playerZ - c * forward + s * right, playerYaw, playerPitch, 20); // 15-20 m/s is pretty average
+            player.p.x + s * forward + c * right, player.p.y + 1.9,
+            player.p.z - c * forward + s * right, playerYaw, playerPitch, 20); // 15-20 m/s is pretty average
       }
 
       for (int i = 0; i < tiles.length; i++) {
         // px = tx + i * BW
-        int xi = (int) Math.round((playerX - tilexz[2 * i]) / BOX_WIDTH);
-        int zi = (int) Math.round((playerZ - tilexz[2 * i + 1]) / BOX_WIDTH);
-        double xd = tilexz[2 * i] + BOX_WIDTH * xi - playerX;
-        double zd = tilexz[2 * i + 1] + BOX_WIDTH * zi - playerZ;
+        int xi = (int) Math.round((player.p.x - tilexz[2 * i]) / BOX_WIDTH);
+        int zi = (int) Math.round((player.p.z - tilexz[2 * i + 1]) / BOX_WIDTH);
+        double xd = tilexz[2 * i] + BOX_WIDTH * xi - player.p.x;
+        double zd = tilexz[2 * i + 1] + BOX_WIDTH * zi - player.p.z;
         double d = 1 - Math.sqrt(xd * xd + zd * zd) / BOX_WIDTH * 2.1; // 2.0 - 2.5
         double br = Math.max(0, d);
         world.put(tiles[i], new Tr(xi * BOX_WIDTH, 0, zi * BOX_WIDTH, (int) (br * 0xFF) * 0x010101 | 0xFF000000));
@@ -204,10 +224,19 @@ public class Sketch3 {
       tick++;
 
       // done
-      world.put(engine3d.camera(), new Tr(playerX, playerY, playerZ, playerYaw, playerPitch, 0));
-      world.put(horizon, new Tr(playerX, playerY, playerZ, 0, 0, 0));
+      world.put(engine3d.camera(), new Tr(player.p.x, player.p.y + 1.8, player.p.z, playerYaw, playerPitch, 0));
+      world.put(horizon, new Tr(player.p.x, player.p.y + 1.8, player.p.z, 0, 0, 0));
       world.put(moon, new Tr(0, 0, 0, mny, mnp, 0));
       apple.worldUpdate(world);
+      for (Particle target : targets) {
+        if (target.visible && target.intersects(apple)) {
+          target.visible = false;
+          target.p.y = -2 * FAR_CLIP;
+          starCount++;
+        }
+      }
+
+      targets.forEach(t -> t.worldUpdate(world));
 
       renderLoop.world = world;
       updateNs += UPDATE_PERIOD_NS;
@@ -229,13 +258,36 @@ public class Sketch3 {
   private class Particle {
     Pnt p = new Pnt();
     Pnt v = new Pnt();
-    Pnt a = new Pnt();
-    boolean visible;
+    Pnt a;
+
+    public Particle(double gravity) {
+      this.a = new Pnt(0, -gravity, 0);
+    }
+
+    boolean visible = true;
+    double radius;
     Engine3d.Node node;
+    public boolean intersects(Particle p) {
+      double radius = p.radius + this.radius;
+      return Math.abs(p.p.x - this.p.x) < radius
+          && Math.abs(p.p.y - this.p.y) < radius
+          && Math.abs(p.p.z - this.p.z) < radius;
+    }
     public Particle run(double time) {
       v.add(a, time);
       p.add(v, time);
+      double y = surfaceY(p.x, p.z);
+      if (p.y < y) {
+        v.x = 0;
+        v.y = 0;
+        v.z = 0;
+        p.y = y;
+      }
       return this;
+    }
+    void worldUpdate(LinkedHashMap<Engine3d.Node, Tr> world) {
+      Tr tr = new Tr(p.x, p.y, p.z);
+      world.put(node, tr);
     }
   }
 
@@ -246,10 +298,14 @@ public class Sketch3 {
     Engine3d.Node light;
     double time;
     int timeInt;
-    public Projectile() {
-      this(0, a -> null);
+    public double rotateYaw;
+    public double rotatePitch;
+    public double rotateRoll;
+    public Projectile(double gravity) {
+      this(gravity, 0, a -> null);
     }
-    public Projectile(int trail, Function<Double, Engine3d.Node> supplier) {
+    public Projectile(double gravity, int trail, Function<Double, Engine3d.Node> supplier) {
+      super(gravity);
       this.trail = new Engine3d.Node[trail];
       this.trailPnt = new Pnt[trail];
       for (int i = 0; i < trail; i++) {
@@ -259,16 +315,15 @@ public class Sketch3 {
     }
     void launch(double x, double y, double z, double yaw, double pitch, double speed) {
       p = new Pnt(x, y, z);
-      Arrays.fill(trailPnt, new Pnt(0, -1000, 0));
+      Arrays.fill(trailPnt, new Pnt(0, -2 * FAR_CLIP, 0));
       double c = Math.cos(pitch * 2 * Math.PI) * speed;
       v = new Pnt(Math.sin(yaw * 2 * Math.PI) * c, Math.sin(pitch * 2 * Math.PI) * speed, -Math.cos(yaw * 2 * Math.PI) * c);
-      a = new Pnt(0, -GRAVITY, 0);
       time = 0;
       timeInt = 0;
     }
 
     @Override
-    public Particle run(double time) {
+    public Projectile run(double time) {
       this.time += time;
       int t = (int) Math.floor(this.time / TRAIL_PERIOD);
       if (t > timeInt) {
@@ -280,9 +335,11 @@ public class Sketch3 {
       return this;
     }
 
+    @Override
     void worldUpdate(LinkedHashMap<Engine3d.Node, Tr> world) {
-      double a = System.nanoTime() / 1_000_000_000.0 * 4;
-      Tr tr = new Tr(p.x, p.y, p.z, 0, a, 0);
+      double a = System.nanoTime() / 1_000_000_000.0;
+      if (v.x == 0 && v.y == 0 && v.z == 0) a = 0;
+      Tr tr = new Tr(p.x, p.y, p.z, rotateYaw * a, rotatePitch * a, rotateRoll * a);
       world.put(node, tr);
       if (light != null) world.put(light, tr);
       for (int i = 0; i < trail.length; i++) world.put(trail[i], new Tr(trailPnt[i].x, trailPnt[i].y, trailPnt[i].z));
@@ -347,6 +404,7 @@ public class Sketch3 {
     Map<Engine3d.Node, Tr> world = Collections.emptyMap();
     @Override
     public void run() {
+      Graphics graphics = screen.image.getGraphics();
       while (!systemExit) {
         Map<Engine3d.Node, Tr> world = this.world;
         if (world.isEmpty()) {
@@ -355,6 +413,8 @@ public class Sketch3 {
         }
         world.forEach((key, value) -> value.accept(key));
         engine3d.update();
+        for (int i = 0; i < appleCount; i++) graphics.drawImage(appleIcon, i * 16 + 8, 8, null);
+        for (int i = 0; i < starCount; i++) graphics.drawImage(starIcon, i * 16 + 8, 24, null);
         screen.update();
       }
     }
