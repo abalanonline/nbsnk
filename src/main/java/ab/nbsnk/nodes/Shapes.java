@@ -26,10 +26,20 @@ public class Shapes {
   private static BufferedImage DEFAULT_IMAGE;
   private static BufferedImage image() {
     if (DEFAULT_IMAGE == null) {
-      DEFAULT_IMAGE = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+      DEFAULT_IMAGE = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
       DEFAULT_IMAGE.setRGB(0, 0, -1);
     }
     return DEFAULT_IMAGE;
+  }
+
+  public static class Square extends Obj {
+    public Square() {
+      this.face = new int[]{0, 0, 0, 1, 0, 1, 2, 0, 2, 2, 0, 2, 3, 0, 3, 0, 0, 0,};
+      this.vertex = new double[]{1, 1, 0, -1, 1, 0, -1, -1, 0, 1, -1, 0,};
+      this.normal = new double[]{0, 0, 1,};
+      this.texture = new double[]{1, 1, 0, 1, 0, 0, 1, 0,};
+      image = Shapes.image();
+    }
   }
 
   public static class Cube extends Obj {
@@ -46,7 +56,7 @@ public class Shapes {
           0.625000, 0.500000, 0.875000, 0.500000, 0.875000, 0.750000, 0.625000, 0.750000, 0.375000, 0.750000,
           0.625000, 1.000000, 0.375000, 1.000000, 0.375000, 0.000000, 0.625000, 0.000000, 0.625000, 0.250000,
           0.375000, 0.250000, 0.125000, 0.500000, 0.375000, 0.500000, 0.125000, 0.750000,};
-      image = image();
+      image = Shapes.image();
     }
   }
 
@@ -281,7 +291,7 @@ public class Shapes {
           0.812500, 0.375000, 0.812500, 0.250000, 0.812500, 0.625000, 0.812500, 0.500000, 0.812500, 0.875000,
           0.812500, 0.750000, 0.812500, 0.125000, 0.843750, 1.000000, 0.843750, 0.000000, 0.781250, 1.000000,
           0.781250, 0.000000, };
-      image = image();
+      image = Shapes.image();
     }
   }
 
@@ -315,7 +325,7 @@ public class Shapes {
           0.545455, 0.000000, 0.363637, 0.314921, 0.181819, 0.314921, 0.909091, 0.314921, 0.727273, 0.314921,
           0.545455, 0.314921, 0.000000, 0.314921, 0.272728, 0.472382, 0.090910, 0.472382, 0.818182, 0.472382,
           0.636364, 0.472382, 0.454546, 0.472382, };
-      image = image();
+      image = Shapes.image();
     }
   }
 
@@ -407,7 +417,7 @@ public class Shapes {
           0.681818, 0.393651, 0.636364, 0.472382, 0.863636, 0.393651, 0.818182, 0.472382, 0.909091, 0.314921,
           0.136365, 0.393651, 0.090910, 0.472382, 0.318182, 0.393651, 0.272728, 0.472382, 0.954545, 0.236191,
           1.000000, 0.157461, 0.409092, 0.078731, 0.363637, 0.000000, };
-      image = image();
+      image = Shapes.image();
     }
   }
 

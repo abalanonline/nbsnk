@@ -17,10 +17,13 @@
 
 package ab.nbsnk;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -101,6 +104,14 @@ public class Obj {
   public static Obj load(InputStream stream) {
     try {
       return load(stream.readAllBytes());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public static BufferedImage image(Path path) {
+    try {
+      return ImageIO.read(Files.newInputStream(path));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

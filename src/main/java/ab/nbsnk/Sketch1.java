@@ -227,7 +227,7 @@ public class Sketch1 {
         return;
       }
       int[] data = new int[width * height];
-      writableImage.getPixelReader().getPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
+      writableImage.getPixelReader().getPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), data, 0, width);
       image.getRaster().setDataElements(0, 0, width, height, data);
     }
 

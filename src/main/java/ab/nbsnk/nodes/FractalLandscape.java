@@ -78,11 +78,11 @@ public class FractalLandscape {
     double[][] texture1 = FractalLandscape.diamondSquare(size, seed + 1000000000L);
     double[][] texture2 = FractalLandscape.diamondSquare(size, seed + 2000000000L);
     double[][] texture3 = FractalLandscape.diamondSquare(size, seed + 3000000000L);
-    BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
+    BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
     for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) {
       int color = (test(texture1[y][x] * temperature) ? 1 : 0)
           | (test(texture2[y][x] * temperature) ? 2 : 0) | (test(texture3[y][x] * temperature) ? 4 : 0);
-      image.setRGB(x, y, colors[color]);
+      image.setRGB(x, y, colors[color] | 0xFF000000);
     }
     return image;
   }

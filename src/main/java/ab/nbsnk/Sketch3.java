@@ -46,6 +46,7 @@ public class Sketch3 {
   public static final int BOX_WIDTH = 500;
   public static final int BOX_HEIGHT = 100;
   public static final int FAR_CLIP = BOX_WIDTH / 2;
+  public static final Pnt INVISIBLE = new Pnt(0, -2 * FAR_CLIP, 0);
   public static final double GRAVITY = 1.625;
   private Screen screen;
   private Engine3d engine3d;
@@ -169,9 +170,9 @@ public class Sketch3 {
         }
         if (key.startsWith("Mouse")) {
           char bw = key.charAt(6);
-          int button = key.charAt(7) - '0';
-          boolean buttonOn = key.charAt(5) == '+';
           if (bw == 'B') {
+            int button = key.charAt(7) - '0';
+            boolean buttonOn = key.charAt(5) == '+';
             (buttonOn ? mouseClick : mouseRelease)[button] = true;
             mouseButton[button] = buttonOn;
           }
@@ -315,7 +316,7 @@ public class Sketch3 {
     }
     void launch(double x, double y, double z, double yaw, double pitch, double speed) {
       p = new Pnt(x, y, z);
-      Arrays.fill(trailPnt, new Pnt(0, -2 * FAR_CLIP, 0));
+      Arrays.fill(trailPnt, INVISIBLE);
       double c = Math.cos(pitch * 2 * Math.PI) * speed;
       v = new Pnt(Math.sin(yaw * 2 * Math.PI) * c, Math.sin(pitch * 2 * Math.PI) * speed, -Math.cos(yaw * 2 * Math.PI) * c);
       time = 0;
@@ -329,7 +330,7 @@ public class Sketch3 {
       if (t > timeInt) {
         timeInt = t;
         for (int i = trailPnt.length - 1; i > 0; i--) trailPnt[i] = trailPnt[i - 1];
-        trailPnt[0] = p.clone();
+        trailPnt[0] = v.x == 0 && v.y == 0 && v.z == 0 ? INVISIBLE : p.clone();
       }
       super.run(time);
       return this;

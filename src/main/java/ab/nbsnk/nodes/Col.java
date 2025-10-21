@@ -59,7 +59,7 @@ public class Col {
   }
 
   public int rgb() {
-    return Math.min(0xFF, (int) (r * 0xFF)) << 16 |
+    return 0xFF000000 | Math.min(0xFF, (int) (r * 0xFF)) << 16 |
         Math.min(0xFF, (int) (g * 0xFF)) << 8 | Math.min(0xFF, (int) (b * 0xFF));
   }
 

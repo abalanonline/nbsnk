@@ -37,13 +37,8 @@ import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import javafx.stage.Stage;
 
-import javax.imageio.ImageIO;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -88,7 +83,7 @@ public class EngineFx implements Engine3d {
       texCoords = new float[obj.texture.length];
       for (int i = 0; i < texCoords.length; i += 2) {
         texCoords[i] = (float) obj.texture[i];
-        texCoords[i + 1] = (float) (1 - obj.texture[i + 1]); // flip Y
+        texCoords[i + 1] = (float) (obj.texture[i + 1]); // do not flip Y, flip the image instead
       }
     }
 
@@ -101,19 +96,46 @@ public class EngineFx implements Engine3d {
   }
 
   private static Image loadImg(BufferedImage image) {
-    ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    try {
-      ImageIO.write(image, "png", stream);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    // If we have a texture image and an array of (x, y) coordinates of the image,
+    // and we need to pass this image to JavaFX, knowing that it uses a y-down coordinate system.
+    // We might think we can simply invert the y coordinate, right? Wrong.
+    // Because the moment we switch from a texture to a normal map, its green color
+    // corresponds to the increase of the y coordinate. And it will always point in the wrong direction
+    // unless we mirror flip the image itself.
+    int width = image.getWidth();
+    int height = image.getHeight();
+    WritableImage writableImage = new WritableImage(width, height);
+    Object data = image.getRaster().getDataElements(0, 0, width, height, null);
+    switch (image.getType()) {
+      case BufferedImage.TYPE_INT_ARGB:
+        writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(),
+            (int[]) data, width * (height - 1), -width);
+        break;
+      case BufferedImage.TYPE_3BYTE_BGR:
+        writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getByteRgbInstance(),
+            (byte[]) data, 3 * width * (height - 1), -3 * width);
+        break;
+      case BufferedImage.TYPE_4BYTE_ABGR:
+        byte[] dataBytes = (byte[]) data;
+        for (int i = 0; i < dataBytes.length; i += 4) {
+          byte red = dataBytes[i];
+          dataBytes[i] = dataBytes[i + 2]; // blue
+          dataBytes[i + 2] = red;
+        }
+        writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getByteBgraInstance(),
+            dataBytes, 4 * width * (height - 1), -4 * width);
+        break;
+      default: throw new IllegalStateException(image.toString());
     }
-    ByteArrayInputStream inputStream = new ByteArrayInputStream(stream.toByteArray());
-    return new Image(inputStream);
+    return writableImage;
   }
 
   @Override
   public EngineFx open(BufferedImage image) {
     System.setProperty("prism.forceGPU", "true");
+    //assert com.sun.prism.impl.PrismSettings.forceGPU : "prism.forceGPU=true";
+    if (!com.sun.prism.impl.PrismSettings.forceGPU) throw new AssertionError("prism.forceGPU=true");
+    if (image.getType() != BufferedImage.TYPE_INT_RGB && image.getType() != BufferedImage.TYPE_INT_ARGB) throw new IllegalArgumentException();
     this.image = image;
     this.imageWidth = image.getWidth();
     this.imageHeight = image.getHeight();
@@ -130,12 +152,13 @@ public class EngineFx implements Engine3d {
 
   @Override
   public EngineFx background(BufferedImage image) {
+    if (image.getType() != BufferedImage.TYPE_INT_ARGB) throw new IllegalArgumentException();
     int width = image.getWidth();
     int height = image.getHeight();
     WritableImage writableImage = new WritableImage(width, height);
     int[] data = new int[width * height];
     image.getRaster().getDataElements(0, 0, width, height, data);
-    writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
+    writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), data, 0, width);
     JavaFx.App.scene.setFill(new ImagePattern(writableImage));
     return this;
   }
@@ -178,7 +201,7 @@ public class EngineFx implements Engine3d {
     snapshot();
     int[] data = new int[imageWidth * imageHeight];
     JavaFx.App.writableImage.getPixelReader()
-        .getPixels(0, 0, imageWidth, imageHeight, PixelFormat.getIntArgbPreInstance(), data, 0, imageWidth);
+        .getPixels(0, 0, imageWidth, imageHeight, PixelFormat.getIntArgbInstance(), data, 0, imageWidth);
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, data);
     if (fpsMeter != null) {
       String fps = String.format("fps: %.0f", fpsMeter.getFps());
@@ -310,19 +333,14 @@ public class EngineFx implements Engine3d {
     public ShapeFx(Obj obj) {
       super(new MeshView(loadObj(obj)));
       MeshView meshView = (MeshView) this.node;
+      material = new PhongMaterial();
       if (obj.image != null) {
-        material = new PhongMaterial();
         material.setDiffuseMap(imageCache.computeIfAbsent(obj.image, EngineFx::loadImg));
         //double cl = 0.5;
         //double tr = 0.5;
         //material.setDiffuseColor(Color.color(cl, cl, cl, tr));
-        meshView.setMaterial(material);
-      } else {
-        material = new PhongMaterial();
-        material.setDiffuseColor(Color.WHITE);
-        //material.setSpecularColor(Color.BLACK);
-        meshView.setMaterial(material);
       }
+      meshView.setMaterial(material);
     }
 
     @Override
@@ -340,12 +358,12 @@ public class EngineFx implements Engine3d {
         int width = (int) image.getWidth();
         int height = (int) image.getHeight();
         int[] data = new int[width * height];
-        image.getPixelReader().getPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
+        image.getPixelReader().getPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), data, 0, width);
         for (int i = 0; i < data.length; i++) {
           data[i] = new Col(data[i]).mul(mul).rgb();
         }
         WritableImage writableImage = new WritableImage(width, height);
-        writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbPreInstance(), data, 0, width);
+        writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), data, 0, width);
         image = writableImage;
       }
       material.setSelfIlluminationMap(image);

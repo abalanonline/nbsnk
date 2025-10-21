@@ -19,6 +19,7 @@ package ab.nbsnk;
 
 import Jama.Matrix;
 import ab.nbsnk.nodes.Col;
+import ab.nbsnk.nodes.Pnt;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,7 +39,7 @@ public class Shader {
   public double nearClip = 0.1;
   public double farClip = 100.0; // javaFx camera defaults
 
-  public static class Light { int color; double x; double y; double z; }
+  public static class Light { Col color; Pnt xyz; }
   public List<Light> lights;
   public Col[] lightColor;
   public double[] lightPoint;
@@ -384,23 +385,28 @@ public class Shader {
     }
   }
 
+  // cls(), addLight(), add()
   public void cls() {
     Arrays.fill(imageRaster, 0);
     Arrays.fill(zbuffer, 0);
+    lights = new ArrayList<>();
+    lightColor = null;
+    lightPoint = null;
   }
 
+  @Deprecated
   public void addLight(int color, Matrix tm) {
-    if (lights == null) {
-      lights = new ArrayList<>();
-      lightColor = null;
-      lightPoint = null;
-    }
     Matrix xyz = tm.times(new Matrix(new double[]{0, 0, 0, 1}, 4));
     Light light = new Light();
-    light.x = xyz.get(0, 0);
-    light.y = xyz.get(1, 0);
-    light.z = xyz.get(2, 0);
-    light.color = color;
+    light.xyz = new Pnt(xyz.get(0, 0), xyz.get(1, 0), xyz.get(2, 0));
+    light.color = new Col(color);
+    lights.add(light);
+  }
+
+  public void addLight(Pnt xyz, Col color) {
+    Light light = new Light();
+    light.xyz = xyz.clone();
+    light.color = color.clone();
     lights.add(light);
   }
 
@@ -411,10 +417,10 @@ public class Shader {
       lightPoint = new double[size * 3];
       for (int i = 0; i < size; i++) {
         Light light = lights.get(i);
-        lightColor[i] = new Col(light.color);
-        lightPoint[i * 3] = light.x;
-        lightPoint[i * 3 + 1] = light.y;
-        lightPoint[i * 3 + 2] = light.z;
+        lightColor[i] = light.color;
+        lightPoint[i * 3] = light.xyz.x;
+        lightPoint[i * 3 + 1] = light.xyz.y;
+        lightPoint[i * 3 + 2] = light.xyz.z;
       }
       lights = null;
     }
@@ -465,6 +471,7 @@ public class Shader {
     rasterization();
   }
 
+  @Deprecated
   public int[] run(int[] textureRaster, int textureWidth, int textureHeight,
       Obj obj, double year) {
     lightColor = new Col[]{new Col(0xFFFFFF)};

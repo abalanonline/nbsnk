@@ -18,6 +18,8 @@
 package ab.nbsnk;
 
 import Jama.Matrix;
+import ab.nbsnk.nodes.Col;
+import ab.nbsnk.nodes.Pnt;
 
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
@@ -110,23 +112,28 @@ public class EngineNbs implements Engine3d {
 
   @Override
   public void update() {
+    shader.cls();
     if (background == null) {
       Arrays.fill(imageRaster, -1);
     } else {
       System.arraycopy(background, 0, imageRaster, 0, imageWidth * imageHeight);
     }
-    Arrays.fill(shader.zbuffer, 0);
     shader.imageRaster = this.imageRaster;
     Map<NodeNbs, Matrix> map = new LinkedHashMap<>();
     dfs(root, this.camera.multiply(IDENTITY).inverse(), map);
     map.entrySet().stream().filter(e -> e.getKey() instanceof LightNbs)
-        .forEach(e -> shader.addLight(((LightNbs) e.getKey()).color, e.getValue()));
+        .forEach(e -> {
+          Matrix xyz = e.getValue().times(new Matrix(new double[]{0, 0, 0, 1}, 4));
+          Pnt pnt = new Pnt(xyz.get(0, 0), xyz.get(1, 0), xyz.get(2, 0));
+          int color = ((LightNbs) e.getKey()).color;
+          shader.addLight(pnt, new Col(color));
+          //shader.addLight(((LightNbs) e.getKey()).color, e.getValue()); // deprecated
+        });
+    // if no lights, add the light from the camera, Javafx default
+    if (shader.lights.isEmpty()) shader.addLight(new Pnt(), new Col(-1));
     for (Map.Entry<NodeNbs, Matrix> entry : map.entrySet()) {
       NodeNbs node = entry.getKey();
-      if (node instanceof LightNbs) {
-        //System.out.println(node);
-        continue;
-      }
+      if (node instanceof LightNbs) continue;
       if (node instanceof ShapeNbs) {
         ShapeNbs shape = (ShapeNbs) node;
         Shader.Illumination enableIllumination = shader.enableIllumination;
