@@ -49,7 +49,7 @@ public class Animals {
   public static BufferedImage scaleImage(int v, BufferedImage image) {
     int width = image.getWidth();
     int height = image.getHeight();
-    BufferedImage scaled = new BufferedImage(width * v, height * v, BufferedImage.TYPE_INT_RGB);
+    BufferedImage scaled = new BufferedImage(width * v, height * v, BufferedImage.TYPE_INT_ARGB);
     scaled.getGraphics().drawImage(image, 0, 0, width * v, height * v, null);
     return scaled;
   }

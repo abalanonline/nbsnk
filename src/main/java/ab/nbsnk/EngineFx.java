@@ -20,6 +20,7 @@ package ab.nbsnk;
 import ab.nbsnk.nodes.Col;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.scene.AmbientLight;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.PointLight;
 import javafx.scene.Scene;
@@ -130,6 +131,10 @@ public class EngineFx implements Engine3d {
     return writableImage;
   }
 
+  private static Color color(int color) {
+    return Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF, (color >> 24 & 0xFF) / 255.0);
+  }
+
   @Override
   public EngineFx open(BufferedImage image) {
     System.setProperty("prism.forceGPU", "true");
@@ -176,6 +181,12 @@ public class EngineFx implements Engine3d {
   @Override
   public LightFx light() {
     return new LightFx();
+  }
+
+  @Override
+  public EngineFx setAmbient(int color) {
+    JavaFx.App.ambientLight.setColor(color(color));
+    return this;
   }
 
   @Override
@@ -232,13 +243,15 @@ public class EngineFx implements Engine3d {
       public static int imageHeight;
       public static Scene scene;
       public static javafx.scene.Group root;
+      public static javafx.scene.AmbientLight ambientLight;
       public static PerspectiveCamera camera;
       public static WritableImage writableImage;
       public static BlockingQueue<Object> io = new SynchronousQueue<>();
 
       @Override
       public void start(Stage primaryStage) {
-        root = new javafx.scene.Group();
+        ambientLight = new AmbientLight(Color.BLACK);
+        root = new javafx.scene.Group(ambientLight);
         scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
         camera = new PerspectiveCamera(true);
         camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
@@ -345,7 +358,14 @@ public class EngineFx implements Engine3d {
 
     @Override
     public ShapeFx setColor(int color) {
-      material.setDiffuseColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF, (color >> 24 & 0xFF) / 255.0));
+      material.setDiffuseColor(color(color));
+      return this;
+    }
+
+    @Override
+    public ShapeFx setSpecular(int color, double power) {
+      material.setSpecularColor(color(color));
+      material.setSpecularPower(power);
       return this;
     }
 
@@ -388,7 +408,7 @@ public class EngineFx implements Engine3d {
 
     @Override
     public LightFx setColor(int color) {
-      ((PointLight) this.node).setColor(Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF));
+      ((PointLight) this.node).setColor(color(color));
       return this;
     }
 

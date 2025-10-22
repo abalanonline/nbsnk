@@ -38,6 +38,8 @@ public interface Engine3d extends AutoCloseable {
 
   Light light();
 
+  Engine3d setAmbient(int color);
+
   Node camera();
 
   Engine3d setFarClip(double value);
@@ -77,6 +79,8 @@ public interface Engine3d extends AutoCloseable {
   interface Shape extends Node {
 
     Shape setColor(int color);
+
+    Shape setSpecular(int color, double power);
 
     Shape selfIllumination(int color);
 

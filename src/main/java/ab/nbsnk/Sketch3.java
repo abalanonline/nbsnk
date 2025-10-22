@@ -95,7 +95,7 @@ public class Sketch3 {
     int screenHeight = fullHd ? 1080 : 360;
     screen.image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);
     screen.preferredSize = new Dimension(screenWidth, screenHeight);
-    engine3d = new EngineFx().open(screen.image).setFarClip(FAR_CLIP).showFps();
+    engine3d = new EngineFx().open(screen.image).setFarClip(FAR_CLIP).setAmbient(0xFF000022).showFps();
     horizon = engine3d.group();
     moon = (Engine3d.Group) engine3d.group().connect(horizon);
     for (int y = -100; y <= 100; y += 40) {

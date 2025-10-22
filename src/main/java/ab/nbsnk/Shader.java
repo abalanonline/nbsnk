@@ -54,10 +54,9 @@ public class Shader {
   public int textureHeight;
   public Col textureColor = new Col(-1);
 
-  public double ambient = 0;
-  public double diffuse = 1;
-  public double specular = 0;
-  public double shininess = 100;
+  public Col ambientColor = new Col();
+  public Col specularColor = new Col();
+  public double specularPower = 32; // shininess
 
   public int[] face; // current obj
   public double[] vertex;
@@ -140,30 +139,29 @@ public class Shader {
     double x = barycentricPosition[0];
     double y = barycentricPosition[1];
     double z = barycentricPosition[2];
-    return illuminationRgb(x, y, z, barycentricNormal, 0, viewer, imageRasterXY * 3).mul(getTextureColor()).rgb();
+    Col[] illuminationSpecular = illuminationRgb(x, y, z, barycentricNormal, 0, viewer, imageRasterXY * 3);
+    return illuminationSpecular[0].mul(getTextureColor()).add(illuminationSpecular[1], 1).rgb();
   }
 
-  public Col illuminationRgb(double x, double y, double z, double[] normal, int in, double[] viewer, int iv) {
+  public Col[] illuminationRgb(double x, double y, double z, double[] normal, int in, double[] viewer, int iv) {
     Col illuminationRgb = new Col();
+    Col specularRgb = new Col();
     for (int i = 0; i < lightPoint.length; i += 3) {
       double[] light = {lightPoint[i] - x, lightPoint[i + 1] - y, lightPoint[i + 2] - z};
       normalize(light);
-      double illumination = phongReflection(light, 0, normal, in, viewer, iv);
-      illuminationRgb.add(lightColor[i / 3], illumination);
+      double dotLN = Math.max(0, dotProduct(normal, in, light, 0));
+      double[] R = {
+          2 * dotLN * normal[in] - light[0],
+          2 * dotLN * normal[in + 1] - light[1],
+          2 * dotLN * normal[in + 2] - light[2]
+      };
+      normalize(R);
+      double dotRV = Math.max(0, dotProduct(R, 0, viewer, iv));
+      //double illumination = ambient + diffuse * dotLN + specular * Math.pow(dotRV, specularPower);
+      illuminationRgb.add(lightColor[i / 3], dotLN); // diffuse
+      specularRgb.add(lightColor[i / 3], Math.pow(dotRV, specularPower)); // specular
     }
-    return illuminationRgb;
-  }
-
-  public double phongReflection(double[] light, int il, double[] normal, int in, double[] viewer, int iv) {
-    double dotLN = Math.max(0, dotProduct(normal, in, light, il));
-    double[] R = {
-        2 * dotLN * normal[in] - light[il],
-        2 * dotLN * normal[in + 1] - light[il + 1],
-        2 * dotLN * normal[in + 2] - light[il + 2]
-    };
-    normalize(R);
-    double dotRV = Math.max(0, dotProduct(R, 0, viewer, iv));
-    return ambient + diffuse * dotLN + specular * Math.pow(dotRV, shininess);
+    return new Col[]{illuminationRgb.add(ambientColor, 1), specularRgb.mul(specularColor)};
   }
 
   public int gouraudShading() {
@@ -318,7 +316,7 @@ public class Shader {
     double x = (vertexTrue[fv0] + vertexTrue[fv1] + vertexTrue[fv2]) / 3;
     double y = (vertexTrue[fv0 + 1] + vertexTrue[fv1 + 1] + vertexTrue[fv2 + 1]) / 3;
     double z = (vertexTrue[fv0 + 2] + vertexTrue[fv1 + 2] + vertexTrue[fv2 + 2]) / 3;
-    gouraudIllumination[0] = illuminationRgb(x, y, z, normal, fn0, new double[3], 0);
+    gouraudIllumination[0] = illuminationRgb(x, y, z, normal, fn0, new double[3], 0)[0];
   }
 
   public void createGouraudIllumination() {
@@ -335,7 +333,7 @@ public class Shader {
       //double v = phongReflection(light, 0, normal, fni[i], viewer, 0);
       int fv = fvi[i];
       gouraudIllumination[i] = illuminationRgb(
-          vertexTrue[fv], vertexTrue[fv + 1], vertexTrue[fv + 2], normal, fni[i], new double[3], 0);
+          vertexTrue[fv], vertexTrue[fv + 1], vertexTrue[fv + 2], normal, fni[i], new double[3], 0)[0];
     }
   }
 
@@ -362,6 +360,10 @@ public class Shader {
           if (enableIllumination == Illumination.GOURAUD) createGouraudIllumination();
           createIllumination = false;
         }
+        // barycentric perspective correction
+        barycentricCoordinates[0] *= (1 - z) / (1 - v0z);
+        barycentricCoordinates[1] *= (1 - z) / (1 - v1z);
+        barycentricCoordinates[2] *= (1 - z) / (1 - v2z);
         imageRaster[imageRasterXY] = visiblePixelMethod.getAsInt();
       }
     }

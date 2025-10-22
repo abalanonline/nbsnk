@@ -18,6 +18,7 @@
 package ab.nbsnk;
 
 import ab.jnc3.Screen;
+import ab.nbsnk.nodes.Col;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,8 @@ class ShaderTest {
     // 66 fps with texture
     // 180 fps after replacing BufferedImage with int array
     // 180 fps 12MiB pre-calculated normalized viewer angle
+    // during the shader improvements, it went down
+    // 115 fps multiple light color and specular color
     BufferedImage texture = null;
     Obj obj = Obj.load(getClass()
 //        .getResourceAsStream("blender_cube.obj").readAllBytes());
@@ -103,6 +106,9 @@ class ShaderTest {
     int width = screen.image.getWidth();
     int height = screen.image.getHeight();
     Shader shader = new Shader(width, height);
+    shader.specularColor = new Col(-1);
+    shader.specularPower = 100;
+    shader.ambientColor = new Col(0xFF222222);
     AtomicInteger mode = new AtomicInteger();
     screen.keyListener = key -> {
       if ("Esc".equals(key)) open = false;

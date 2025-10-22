@@ -43,6 +43,7 @@ public class EngineNbs implements Engine3d {
   private NodeNbs camera;
   private FpsMeter fpsMeter;
   private Map<BufferedImage, int[]> imageCache = new HashMap<>();
+  private Col ambientColor = new Col();
 
   @Override
   public EngineNbs open(BufferedImage image) {
@@ -84,6 +85,12 @@ public class EngineNbs implements Engine3d {
   }
 
   @Override
+  public EngineNbs setAmbient(int color) {
+    this.ambientColor = new Col(color);
+    return this;
+  }
+
+  @Override
   public NodeNbs camera() {
     return this.camera;
   }
@@ -121,6 +128,7 @@ public class EngineNbs implements Engine3d {
     shader.imageRaster = this.imageRaster;
     Map<NodeNbs, Matrix> map = new LinkedHashMap<>();
     dfs(root, this.camera.multiply(IDENTITY).inverse(), map);
+    shader.ambientColor = this.ambientColor;
     map.entrySet().stream().filter(e -> e.getKey() instanceof LightNbs)
         .forEach(e -> {
           Matrix xyz = e.getValue().times(new Matrix(new double[]{0, 0, 0, 1}, 4));
@@ -138,6 +146,8 @@ public class EngineNbs implements Engine3d {
         ShapeNbs shape = (ShapeNbs) node;
         Shader.Illumination enableIllumination = shader.enableIllumination;
         if (shape.selfIllumination) shader.enableIllumination = Shader.Illumination.NONE;
+        shader.specularColor = shape.specularColor;
+        shader.specularPower = shape.specularPower;
         shader.add(shape.obj, entry.getValue(), shape.textureRaster, shape.textureWidth, shape.textureHeight, shape.color);
         if (shape.selfIllumination) shader.enableIllumination = enableIllumination;
         continue;
@@ -284,6 +294,8 @@ public class EngineNbs implements Engine3d {
     private int textureWidth;
     private int textureHeight;
     private int color = -1;
+    private Col specularColor = new Col();
+    private double specularPower = 32;
     private boolean selfIllumination;
 
     public ShapeNbs(Obj obj) {
@@ -301,6 +313,13 @@ public class EngineNbs implements Engine3d {
     @Override
     public ShapeNbs setColor(int color) {
       this.color = color;
+      return this;
+    }
+
+    @Override
+    public ShapeNbs setSpecular(int color, double power) {
+      this.specularColor = new Col(color);
+      this.specularPower = power;
       return this;
     }
 

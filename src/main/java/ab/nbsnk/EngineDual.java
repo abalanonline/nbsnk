@@ -105,6 +105,13 @@ public class EngineDual implements Engine3d {
   }
 
   @Override
+  public EngineDual setAmbient(int color) {
+    engineLeft.setAmbient(color);
+    engineRight.setAmbient(color);
+    return this;
+  }
+
+  @Override
   public NodeDual camera() {
     return new NodeDual(engineLeft.camera(), engineRight.camera());
   }
@@ -235,6 +242,13 @@ public class EngineDual implements Engine3d {
     public ShapeDual setColor(int color) {
       ((Shape) this.nodeLeft).setColor(color);
       ((Shape) this.nodeRight).setColor(color);
+      return this;
+    }
+
+    @Override
+    public ShapeDual setSpecular(int color, double power) {
+      ((Shape) this.nodeLeft).setSpecular(color, power);
+      ((Shape) this.nodeRight).setSpecular(color, power);
       return this;
     }
 
