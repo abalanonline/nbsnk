@@ -202,16 +202,21 @@ public class Obj {
         for (int i = 0; i < 3; i++) vertexNormal[vo++] += obj.normal[n++] * a;
       }
     }
-    for (int i = 0; i < vertexNormal.length / 3; i++) {
-      double x = vertexNormal[i * 3];
-      double y = vertexNormal[i * 3 + 1];
-      double z = vertexNormal[i * 3 + 2];
-      double m = Math.sqrt(x * x + y * y + z * z); // magnitude
-      vertexNormal[i * 3] /= m;
-      vertexNormal[i * 3 + 1] /= m;
-      vertexNormal[i * 3 + 2] /= m;
-    }
     obj.normal = vertexNormal;
+    normalizeNormal(obj);
+  }
+
+  public static void normalizeNormal(Obj obj) {
+    for (int i = 0; i < obj.normal.length; i += 3) {
+      double x = obj.normal[i];
+      double y = obj.normal[i + 1];
+      double z = obj.normal[i + 2];
+      double m = Math.sqrt(x * x + y * y + z * z); // magnitude
+      if (m == 0) continue;
+      obj.normal[i] /= m;
+      obj.normal[i + 1] /= m;
+      obj.normal[i + 2] /= m;
+    }
   }
 
   public static void fixNormal(Obj obj) {

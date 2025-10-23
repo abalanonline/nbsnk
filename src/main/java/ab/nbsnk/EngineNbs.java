@@ -71,6 +71,7 @@ public class EngineNbs implements Engine3d {
 
   @Override
   public ShapeNbs shape(Obj obj) {
+    Obj.verify(obj);
     return new ShapeNbs(obj);
   }
 
@@ -325,6 +326,13 @@ public class EngineNbs implements Engine3d {
 
     @Override
     public ShapeNbs selfIllumination(int color) {
+      if ((color & 0xFFFFFF) != 0xFFFFFF) {
+        Col mul = new Col(color);
+        int n = textureRaster.length;
+        int[] tr = new int[n];
+        for (int i = 0; i < n; i++) tr[i] = new Col(textureRaster[i]).mul(mul).rgb();
+        textureRaster = tr;
+      }
       selfIllumination = true;
       return this;
     }

@@ -39,6 +39,9 @@ public class Shapes {
       this.normal = new double[]{0, 0, 1,};
       this.texture = new double[]{1, 1, 0, 1, 0, 0, 1, 0,};
       image = Shapes.image();
+      //this.face = new int[]{0, 1, 0, 1, 2, 1, 2, 3, 2, 2, 3, 2, 3, 4, 3, 0, 1, 0,}; // distorted normals
+      //this.normal = new double[]{0, 0, 1, 1, 1, 0.9, -1, 1, 0.9, -1, -1, 0.9, 1, -1, 0.9,};
+      //Obj.normalizeNormal(this);
     }
   }
 

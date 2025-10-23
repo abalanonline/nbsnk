@@ -139,6 +139,7 @@ public class FractalLandscape {
     obj.vertex = v;
     obj.face = f;
     obj.texture = t;
+    // FIXME: 2025-10-23 create interpolated normals here and let the app make flat if they wish
     //Obj.flatNormal(obj); // let the app decide which normals do they wish
     return obj;
   }

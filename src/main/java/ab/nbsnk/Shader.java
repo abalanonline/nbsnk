@@ -360,7 +360,7 @@ public class Shader {
           if (enableIllumination == Illumination.GOURAUD) createGouraudIllumination();
           createIllumination = false;
         }
-        // barycentric perspective correction
+        // barycentric perspective correction, texture and normals
         barycentricCoordinates[0] *= (1 - z) / (1 - v0z);
         barycentricCoordinates[1] *= (1 - z) / (1 - v1z);
         barycentricCoordinates[2] *= (1 - z) / (1 - v2z);

@@ -25,6 +25,8 @@ import ab.nbsnk.nodes.Shapes;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +73,10 @@ public class Sketch3 {
 //    fullHd = true;
     box = FractalLandscape.diamondSquare(BOX_SIZE, 3);
     BufferedImage boxTexture = FractalLandscape.diamondSquareTexture(64, 1, 15);
+    BufferedImage boxTextureIn = new BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D boxTextureIg = boxTextureIn.createGraphics();
+    boxTextureIg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+    boxTextureIg.drawImage(boxTexture, 0, 0, 256, 256, null);
     //boxTexture = Sketch2.img("assets/maptest.png");
     Obj[] tileObjs = FractalLandscape.generate(this.box, TILE_DIV);
     tiles = new Engine3d.Shape[TILE_DIV * TILE_DIV];
@@ -79,16 +85,14 @@ public class Sketch3 {
       Obj tileObj = tileObjs[i];
       Obj.scale(tileObj, BOX_WIDTH, BOX_HEIGHT, BOX_WIDTH);
       Obj.flatNormal(tileObj);
-      Obj.interpolateNormal(tileObj);
-      tileObj.image = boxTexture;
+      // FIXME: 2025-10-23 normals must be interpolated by landscape generator while it works on a full set of tiles
+      tileObj.image = boxTextureIn;
     }
     Obj gridShape = new Shapes.Cube();
 
     // cattle
-    //gridShape = Sketch2.obj("assets/pig1/pig1.obj");
-    //gridShape.image = scale(Sketch2.img("assets/pig1/pig1.png"), 16);
-    //gridShape = Sketch2.obj("assets/sheep2/sheep2.obj");
-    //gridShape.image = scale(Sketch2.img("assets/sheep2/sheep2.png"), 16);
+    //gridShape = new Animals.Pig();
+    //gridShape = new Animals.Sheep();
 
     screen = new Screen();
     int screenWidth = fullHd ? 1920 : 640;
