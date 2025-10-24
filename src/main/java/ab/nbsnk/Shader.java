@@ -65,7 +65,9 @@ public class Shader {
   public double[] vertex;
   public double[] vertexTrue; // because vertex is a projection
   public double[] normal;
+  public double[] tangentBitangent;
   public double[] texture;
+  public int iface;
   public int fv0;
   public int fn0;
   public int ft0;
@@ -138,11 +140,27 @@ public class Shader {
   public int phongShading() {
     final double[] barycentricNormal = new double[3];
     barycentricValue(normal, fn0, normal, fn1, normal, fn2, barycentricCoordinates, barycentricNormal);
-    normalize(barycentricNormal);
+    //normalize(barycentricNormal);
     if (bumpHeight > 0) {
-      int tx = Math.min(Math.max(0, (int) (ttx * bumpWidth)), bumpWidth - 1);
-      int ty = Math.min(Math.max(0, (int) (tty * bumpHeight)), bumpHeight - 1);
-      Col bumpCol = new Col(bumpRaster[(bumpHeight - 1 - ty) * bumpWidth + tx]);
+      int btx = Math.min(Math.max(0, (int) (ttx * bumpWidth)), bumpWidth - 1); // bump texture x
+      int bty = Math.min(Math.max(0, (int) (tty * bumpHeight)), bumpHeight - 1);
+      Col bumpCol = new Col(bumpRaster[(bumpHeight - 1 - bty) * bumpWidth + btx]);
+      double vt = bumpCol.r - 0.5;
+      double vb = bumpCol.g - 0.5;
+      double vn = 2 * (bumpCol.b - 0.5); // TODO: 2025-10-25 confirm that 2* is not a bug of javafx
+      int i = iface * 6;
+      double tx = tangentBitangent[i++];
+      double ty = tangentBitangent[i++];
+      double tz = tangentBitangent[i++];
+      double bx = tangentBitangent[i++];
+      double by = tangentBitangent[i++];
+      double bz = tangentBitangent[i++];
+      double nx = barycentricNormal[0];
+      double ny = barycentricNormal[1];
+      double nz = barycentricNormal[2];
+      barycentricNormal[0] = vt * tx + vb * bx + vn * nx;
+      barycentricNormal[1] = vt * ty + vb * by + vn * ny;
+      barycentricNormal[2] = vt * tz + vb * bz + vn * nz;
       normalize(barycentricNormal);
     }
     final double[] barycentricPosition = new double[3];
@@ -238,6 +256,7 @@ public class Shader {
 
   public void iterateVisibleFace() {
     for (int i = 0; i < face.length;) {
+      iface = i / 9;
       fv0 = face[i++] * 3;
       fn0 = face[i++] * 3;
       ft0 = face[i++] * 2;
@@ -458,6 +477,14 @@ public class Shader {
       normal[i * 3 + 1] = xyz1.get(1, 0);
       normal[i * 3 + 2] = xyz1.get(2, 0);
     }
+    tangentBitangent = tangentBitangent == null ? new double[0] : Arrays.copyOf(tangentBitangent, tangentBitangent.length);
+    for (int i = 0; i < tangentBitangent.length; i += 3) {
+      Matrix xyz = new Matrix(new double[]{tangentBitangent[i], tangentBitangent[i + 1], tangentBitangent[i + 2], 0}, 4);
+      Matrix xyz1 = tm.times(xyz);
+      tangentBitangent[i] = xyz1.get(0, 0);
+      tangentBitangent[i + 1] = xyz1.get(1, 0);
+      tangentBitangent[i + 2] = xyz1.get(2, 0);
+    }
     int w2 = imageWidth / 2;
     int h2 = imageHeight / 2;
     for (int i = 0; i < vertex.length / 3; i++) {
@@ -484,6 +511,71 @@ public class Shader {
 //      vertex[i * 3 + 2] = z / 2 + 0.5;
     };
     rasterization();
+  }
+
+  public static double[] computeTangentBitangent(
+      double x1,double y1,double z1, double u1,double v1,
+      double x2,double y2,double z2, double u2,double v2,
+      double x3,double y3,double z3, double u3,double v3) {
+    // FIXME: 2025-10-25 vibe code
+    // edge vectors
+    double ex1 = x2 - x1, ey1 = y2 - y1, ez1 = z2 - z1;
+    double ex2 = x3 - x1, ey2 = y3 - y1, ez2 = z3 - z1;
+
+    // uv deltas
+    double du1 = u2 - u1, dv1 = v2 - v1;
+    double du2 = u3 - u1, dv2 = v3 - v1;
+
+    double f = 1.0 / (du1 * dv2 - du2 * dv1);
+
+    // T = f * ( dv2 * edge1 - dv1 * edge2 )
+    double tx = f * (dv2 * ex1 - dv1 * ex2);
+    double ty = f * (dv2 * ey1 - dv1 * ey2);
+    double tz = f * (dv2 * ez1 - dv1 * ez2);
+
+    // B = f * (-du2 * edge1 + du1 * edge2)
+    double bx = f * (-du2 * ex1 + du1 * ex2);
+    double by = f * (-du2 * ey1 + du1 * ey2);
+    double bz = f * (-du2 * ez1 + du1 * ez2);
+
+    return new double[]{tx, ty, tz, bx, by, bz};
+  }
+
+  public static double[] computeTangentBitangent(Obj obj) {
+    int[] face = obj.face;
+    double[] vertex = obj.vertex;
+    double[] texture = obj.texture;
+    double[] tangentBitangent = new double[6 * face.length / 9];
+    for (int i = 0, tbi = 0; i < face.length; tbi += 6) {
+      int fv0 = face[i++] * 3;
+      int fn0 = face[i++] * 3;
+      int ft0 = face[i++] * 2;
+      int fv1 = face[i++] * 3;
+      int fn1 = face[i++] * 3;
+      int ft1 = face[i++] * 2;
+      int fv2 = face[i++] * 3;
+      int fn2 = face[i++] * 3;
+      int ft2 = face[i++] * 2;
+      double v0x = vertex[fv0];
+      double v0y = vertex[fv0 + 1];
+      double v0z = vertex[fv0 + 2];
+      double v1x = vertex[fv1];
+      double v1y = vertex[fv1 + 1];
+      double v1z = vertex[fv1 + 2];
+      double v2x = vertex[fv2];
+      double v2y = vertex[fv2 + 1];
+      double v2z = vertex[fv2 + 2];
+      double t0u = texture[ft0];
+      double t0v = texture[ft0 + 1];
+      double t1u = texture[ft1];
+      double t1v = texture[ft1 + 1];
+      double t2u = texture[ft2];
+      double t2v = texture[ft2 + 1];
+      double[] tb = Shader
+          .computeTangentBitangent(v0x, v0y, v0z, t0u, t0v, v1x, v1y, v1z, t1u, t1v, v2x, v2y, v2z, t2u, t2v);
+      System.arraycopy(tb, 0, tangentBitangent, tbi, 6);
+    }
+    return tangentBitangent;
   }
 
 }

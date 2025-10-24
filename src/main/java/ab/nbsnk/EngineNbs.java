@@ -190,6 +190,7 @@ public class EngineNbs implements Engine3d {
         shader.bumpRaster = shape.bumpRaster;
         shader.bumpWidth = shape.bumpWidth;
         shader.bumpHeight = shape.bumpHeight;
+        shader.tangentBitangent = shape.tangentBitangent;
         shader.add(shape.obj, entry.getValue());
         if (shape.selfIllumination) shader.enableIllumination = enableIllumination;
         continue;
@@ -312,6 +313,7 @@ public class EngineNbs implements Engine3d {
     private Col specularColor = new Col();
     private double specularPower = 32;
     private boolean selfIllumination;
+    private double[] tangentBitangent;
 
     public ShapeNbs(Obj obj) {
       this.obj = obj.clone();
@@ -320,6 +322,7 @@ public class EngineNbs implements Engine3d {
         this.textureHeight = obj.image.getHeight();
         this.textureRaster = imageCache.computeIfAbsent(obj.image, EngineNbs::loadImg);
       }
+      this.tangentBitangent = Shader.computeTangentBitangent(obj);
     }
 
     @Override
