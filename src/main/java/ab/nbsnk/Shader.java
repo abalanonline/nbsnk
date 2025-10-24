@@ -52,9 +52,12 @@ public class Shader {
   public int[] textureRaster;
   public int textureWidth;
   public int textureHeight;
-  public Col textureColor = new Col(-1);
+  public int[] bumpRaster;
+  public int bumpWidth;
+  public int bumpHeight;
 
   public Col ambientColor = new Col();
+  public Col diffuseColor = new Col(-1);
   public Col specularColor = new Col();
   public double specularPower = 32; // shininess
 
@@ -81,7 +84,7 @@ public class Shader {
   public double v2x;
   public double v2y;
   public double v2z;
-  public final Col[] gouraudIllumination = new Col[3];
+  public final Col[] gouraudIllumination = new Col[6];
   public final double[] barycentricCoordinates = new double[4];
   public int imageRasterXY;
 
@@ -139,44 +142,44 @@ public class Shader {
     double x = barycentricPosition[0];
     double y = barycentricPosition[1];
     double z = barycentricPosition[2];
-    Col[] illuminationSpecular = illuminationRgb(x, y, z, barycentricNormal, 0, viewer, imageRasterXY * 3);
-    return illuminationSpecular[0].mul(getTextureColor()).add(illuminationSpecular[1], 1).rgb();
+    Col[] diffuseSpecular = illuminationRgb(x, y, z, barycentricNormal, 0, viewer, imageRasterXY * 3);
+    return getTextureColor().mul(diffuseSpecular[0]).add(diffuseSpecular[1], 1).rgb();
   }
 
   public Col[] illuminationRgb(double x, double y, double z, double[] normal, int in, double[] viewer, int iv) {
-    Col illuminationRgb = new Col();
+    Col diffuseRgb = new Col();
     Col specularRgb = new Col();
     for (int i = 0; i < lightPoint.length; i += 3) {
       double[] light = {lightPoint[i] - x, lightPoint[i + 1] - y, lightPoint[i + 2] - z};
       normalize(light);
-      double dotLN = Math.max(0, dotProduct(normal, in, light, 0));
+      double dotLN = dotProduct(normal, in, light, 0);
       double[] R = {
           2 * dotLN * normal[in] - light[0],
           2 * dotLN * normal[in + 1] - light[1],
           2 * dotLN * normal[in + 2] - light[2]
       };
       normalize(R);
-      double dotRV = Math.max(0, dotProduct(R, 0, viewer, iv));
+      double dotRV = dotProduct(R, 0, viewer, iv);
       //double illumination = ambient + diffuse * dotLN + specular * Math.pow(dotRV, specularPower);
-      illuminationRgb.add(lightColor[i / 3], dotLN); // diffuse
-      specularRgb.add(lightColor[i / 3], Math.pow(dotRV, specularPower)); // specular
+      diffuseRgb.add(lightColor[i / 3], Math.max(0, dotLN)); // diffuse
+      specularRgb.add(lightColor[i / 3], Math.pow(Math.max(0, dotRV), specularPower)); // specular
     }
-    return new Col[]{illuminationRgb.add(ambientColor, 1), specularRgb.mul(specularColor)};
+    return new Col[]{diffuseRgb.add(ambientColor, 1).mul(diffuseColor), specularRgb.mul(specularColor)};
   }
 
   public int gouraudShading() {
 //    double illumination = barycentricValue(
 //        gouraudIllumination[0], gouraudIllumination[1], gouraudIllumination[2], barycentricCoordinates);
 //    Col col = new Col(illumination, illumination, illumination, 1);
-    return Col
-        .barycentric(gouraudIllumination[0], gouraudIllumination[1], gouraudIllumination[2], barycentricCoordinates)
-        .mul(getTextureColor()).rgb();
+    Col diffuse = Col.barycentric(gouraudIllumination[0], gouraudIllumination[2], gouraudIllumination[4], barycentricCoordinates);
+    Col specular = Col.barycentric(gouraudIllumination[1], gouraudIllumination[3], gouraudIllumination[5], barycentricCoordinates);
+    return getTextureColor().mul(diffuse).add(specular, 1).rgb();
   }
 
   public int lambertTexture() {
 //    double illumination = gouraudIllumination[0];
 //    Col col = new Col(illumination, illumination, illumination, 1);
-    return gouraudIllumination[0].clone().mul(getTextureColor()).rgb();
+    return getTextureColor().mul(gouraudIllumination[0]).add(gouraudIllumination[1], 1).rgb();
   }
 
   public int pixelZbuffer() {
@@ -302,13 +305,13 @@ public class Shader {
   }
 
   public Col getTextureColor() {
-    if (textureHeight == 0) return this.textureColor;
+    if (textureHeight == 0) return new Col(1, 1, 1, 1);
     double txy0 = barycentricValue(texture[ft0], texture[ft1], texture[ft2], barycentricCoordinates);
     double txy1 = barycentricValue(texture[ft0 + 1], texture[ft1 + 1], texture[ft2 + 1], barycentricCoordinates);
     //double[] txy = barycentricValue(texture, t0, texture, t1, texture, t2, r, 2);
     int tx = Math.min(Math.max(0, (int) (txy0 * textureWidth)), textureWidth - 1);
     int ty = Math.min(Math.max(0, (int) (txy1 * textureHeight)), textureHeight - 1);
-    return new Col(textureRaster[(textureHeight - 1 - ty) * textureWidth + tx]).mul(textureColor);
+    return new Col(textureRaster[(textureHeight - 1 - ty) * textureWidth + tx]);
   }
 
   public void createLambertIllumination() {
@@ -316,7 +319,12 @@ public class Shader {
     double x = (vertexTrue[fv0] + vertexTrue[fv1] + vertexTrue[fv2]) / 3;
     double y = (vertexTrue[fv0 + 1] + vertexTrue[fv1 + 1] + vertexTrue[fv2 + 1]) / 3;
     double z = (vertexTrue[fv0 + 2] + vertexTrue[fv1 + 2] + vertexTrue[fv2 + 2]) / 3;
-    gouraudIllumination[0] = illuminationRgb(x, y, z, normal, fn0, new double[3], 0)[0];
+    int xs = (int) Math.round((v0x + v1x + v2x) / 3);
+    int ys = (int) Math.round((v0y + v1y + v2y) / 3);
+    // FIXME: 2025-10-24 using viewer array will crash on edges
+    Col[] illuminationRgb = illuminationRgb(x, y, z, normal, fn0, viewer, (ys * imageWidth + xs) * 3);
+    gouraudIllumination[0] = illuminationRgb[0];
+    gouraudIllumination[1] = illuminationRgb[1];
   }
 
   public void createGouraudIllumination() {
@@ -332,8 +340,10 @@ public class Shader {
       normalize(viewer);
       //double v = phongReflection(light, 0, normal, fni[i], viewer, 0);
       int fv = fvi[i];
-      gouraudIllumination[i] = illuminationRgb(
-          vertexTrue[fv], vertexTrue[fv + 1], vertexTrue[fv + 2], normal, fni[i], new double[3], 0)[0];
+      Col[] illuminationRgb = illuminationRgb(
+          vertexTrue[fv], vertexTrue[fv + 1], vertexTrue[fv + 2], normal, fni[i], viewer, 0);
+      gouraudIllumination[2 * i] = illuminationRgb[0];
+      gouraudIllumination[2 * i + 1] = illuminationRgb[1];
     }
   }
 
@@ -412,7 +422,7 @@ public class Shader {
     lights.add(light);
   }
 
-  public void add(Obj obj, Matrix tm, int[] textureRaster, int textureWidth, int textureHeight, int color) {
+  public void add(Obj obj, Matrix tm) {
     if (lights != null) {
       int size = lights.size();
       lightColor = new Col[size];
@@ -466,10 +476,6 @@ public class Shader {
 //      vertex[i * 3 + 1] = h2 - y * d; // left
 //      vertex[i * 3 + 2] = z / 2 + 0.5;
     };
-    this.textureRaster = textureRaster;
-    this.textureWidth = textureWidth;
-    this.textureHeight = textureHeight;
-    this.textureColor = new Col(color);
     rasterization();
   }
 

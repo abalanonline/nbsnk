@@ -258,6 +258,13 @@ public class EngineDual implements Engine3d {
       ((Shape) this.nodeRight).selfIllumination(color);
       return this;
     }
+
+    @Override
+    public ShapeDual setBumpMap(BufferedImage image) {
+      ((Shape) this.nodeLeft).setBumpMap(image);
+      ((Shape) this.nodeRight).setBumpMap(image);
+      return this;
+    }
   }
 
   private static class GroupDual extends NodeDual implements Group {

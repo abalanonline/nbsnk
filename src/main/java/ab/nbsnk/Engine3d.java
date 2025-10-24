@@ -78,12 +78,15 @@ public interface Engine3d extends AutoCloseable {
 
   interface Shape extends Node {
 
+    // default color is the diffuse one
     Shape setColor(int color);
 
     Shape setSpecular(int color, double power);
 
     Shape selfIllumination(int color);
 
+    // although it is a normal map, the word bump makes it instantly understood
+    Shape setBumpMap(BufferedImage image);
   }
 
   interface Group extends Node {}

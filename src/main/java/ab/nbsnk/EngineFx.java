@@ -390,6 +390,12 @@ public class EngineFx implements Engine3d {
       material.setDiffuseColor(Color.BLACK);
       return this;
     }
+
+    @Override
+    public ShapeFx setBumpMap(BufferedImage image) {
+      material.setBumpMap(imageCache.computeIfAbsent(image, EngineFx::loadImg));
+      return this;
+    }
   }
 
   private static class GroupFx extends NodeFx implements Group {

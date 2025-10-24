@@ -129,7 +129,6 @@ public class EngineNbs implements Engine3d {
     shader.imageRaster = this.imageRaster;
     Map<NodeNbs, Matrix> map = new LinkedHashMap<>();
     dfs(root, this.camera.multiply(IDENTITY).inverse(), map);
-    shader.ambientColor = this.ambientColor;
     map.entrySet().stream().filter(e -> e.getKey() instanceof LightNbs)
         .forEach(e -> {
           Matrix xyz = e.getValue().times(new Matrix(new double[]{0, 0, 0, 1}, 4));
@@ -147,9 +146,17 @@ public class EngineNbs implements Engine3d {
         ShapeNbs shape = (ShapeNbs) node;
         Shader.Illumination enableIllumination = shader.enableIllumination;
         if (shape.selfIllumination) shader.enableIllumination = Shader.Illumination.NONE;
+        shader.ambientColor = this.ambientColor;
+        shader.diffuseColor = shape.diffuseColor;
         shader.specularColor = shape.specularColor;
         shader.specularPower = shape.specularPower;
-        shader.add(shape.obj, entry.getValue(), shape.textureRaster, shape.textureWidth, shape.textureHeight, shape.color);
+        shader.textureRaster = shape.textureRaster;
+        shader.textureWidth = shape.textureWidth;
+        shader.textureHeight = shape.textureHeight;
+        shader.bumpRaster = shape.bumpRaster;
+        shader.bumpWidth = shape.bumpWidth;
+        shader.bumpHeight = shape.bumpHeight;
+        shader.add(shape.obj, entry.getValue());
         if (shape.selfIllumination) shader.enableIllumination = enableIllumination;
         continue;
       }
@@ -294,7 +301,10 @@ public class EngineNbs implements Engine3d {
     private int[] textureRaster;
     private int textureWidth;
     private int textureHeight;
-    private int color = -1;
+    private int[] bumpRaster;
+    private int bumpWidth;
+    private int bumpHeight;
+    private Col diffuseColor = new Col(-1);
     private Col specularColor = new Col();
     private double specularPower = 32;
     private boolean selfIllumination;
@@ -302,18 +312,15 @@ public class EngineNbs implements Engine3d {
     public ShapeNbs(Obj obj) {
       this.obj = obj.clone();
       if (obj.image != null) {
-        int textureWidth = obj.image.getWidth();
-        int textureHeight = obj.image.getHeight();
-        int[] textureRaster = imageCache.computeIfAbsent(obj.image, EngineNbs::loadImg);
-        this.textureWidth = textureWidth;
-        this.textureHeight = textureHeight;
-        this.textureRaster = textureRaster;
+        this.textureWidth = obj.image.getWidth();
+        this.textureHeight = obj.image.getHeight();
+        this.textureRaster = imageCache.computeIfAbsent(obj.image, EngineNbs::loadImg);
       }
     }
 
     @Override
     public ShapeNbs setColor(int color) {
-      this.color = color;
+      this.diffuseColor = new Col(color);
       return this;
     }
 
@@ -334,6 +341,14 @@ public class EngineNbs implements Engine3d {
         textureRaster = tr;
       }
       selfIllumination = true;
+      return this;
+    }
+
+    @Override
+    public ShapeNbs setBumpMap(BufferedImage image) {
+      this.bumpWidth = image.getWidth();
+      this.bumpHeight = image.getHeight();
+      this.bumpRaster = imageCache.computeIfAbsent(image, EngineNbs::loadImg);
       return this;
     }
   }

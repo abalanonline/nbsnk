@@ -106,9 +106,10 @@ class ShaderTest {
     int width = screen.image.getWidth();
     int height = screen.image.getHeight();
     Shader shader = new Shader(width, height);
+    shader.ambientColor = new Col(0xFF222222);
+    shader.diffuseColor = new Col(0xFFDDDDDD);
     shader.specularColor = new Col(-1);
     shader.specularPower = 100;
-    shader.ambientColor = new Col(0xFF222222);
     AtomicInteger mode = new AtomicInteger();
     screen.keyListener = key -> {
       if ("Esc".equals(key)) open = false;

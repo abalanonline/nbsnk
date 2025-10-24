@@ -18,6 +18,7 @@
 package ab.nbsnk;
 
 import ab.jnc3.Screen;
+import ab.nbsnk.nodes.Shapes;
 
 import javax.imageio.ImageIO;
 import java.awt.Dimension;
@@ -178,6 +179,7 @@ public class Sketch2 {
     // light
     engine3d.light().setColor(0xFFFFFF).translation(-100, 0, 15);
     Engine3d.Node light1 = engine3d.light().setColor(0xFFFF00).translation(0, 0, -20);
+    Engine3d.Shape light1o = engine3d.shape(new Shapes.Icosahedron()).selfIllumination(0xFFFFFF00);
 
     // legacy test
     Engine3d.Shape c0 = engine3d.shape(cube);
@@ -237,6 +239,7 @@ public class Sketch2 {
       double osc1 = Math.cos(m % 7200 / 3600.0 * Math.PI);
       c0.translation(-4, osc1, -20);
       light1.translation(osc1 * 5, osc1 * 5, -40);
+      light1o.translation(osc1 * 5, osc1 * 5, -40);
       engine3d.camera().translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get())
           .rotation(cameraRy.get() / 10000.0, cameraRp.get() / -10000.0, cameraRr.get() / 16.0);
       if (useSphere) sphere0.translation(cameraTx.get() / -50.0, cameraTy.get() / 50.0, cameraTz.get());
