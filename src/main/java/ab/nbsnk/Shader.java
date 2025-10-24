@@ -84,6 +84,8 @@ public class Shader {
   public double v2x;
   public double v2y;
   public double v2z;
+  public double ttx;
+  public double tty;
   public final Col[] gouraudIllumination = new Col[6];
   public final double[] barycentricCoordinates = new double[4];
   public int imageRasterXY;
@@ -137,6 +139,12 @@ public class Shader {
     final double[] barycentricNormal = new double[3];
     barycentricValue(normal, fn0, normal, fn1, normal, fn2, barycentricCoordinates, barycentricNormal);
     normalize(barycentricNormal);
+    if (bumpHeight > 0) {
+      int tx = Math.min(Math.max(0, (int) (ttx * bumpWidth)), bumpWidth - 1);
+      int ty = Math.min(Math.max(0, (int) (tty * bumpHeight)), bumpHeight - 1);
+      Col bumpCol = new Col(bumpRaster[(bumpHeight - 1 - ty) * bumpWidth + tx]);
+      normalize(barycentricNormal);
+    }
     final double[] barycentricPosition = new double[3];
     barycentricValue(vertexTrue, fv0, vertexTrue, fv1, vertexTrue, fv2, barycentricCoordinates, barycentricPosition);
     double x = barycentricPosition[0];
@@ -306,11 +314,8 @@ public class Shader {
 
   public Col getTextureColor() {
     if (textureHeight == 0) return new Col(1, 1, 1, 1);
-    double txy0 = barycentricValue(texture[ft0], texture[ft1], texture[ft2], barycentricCoordinates);
-    double txy1 = barycentricValue(texture[ft0 + 1], texture[ft1 + 1], texture[ft2 + 1], barycentricCoordinates);
-    //double[] txy = barycentricValue(texture, t0, texture, t1, texture, t2, r, 2);
-    int tx = Math.min(Math.max(0, (int) (txy0 * textureWidth)), textureWidth - 1);
-    int ty = Math.min(Math.max(0, (int) (txy1 * textureHeight)), textureHeight - 1);
+    int tx = Math.min(Math.max(0, (int) (ttx * textureWidth)), textureWidth - 1);
+    int ty = Math.min(Math.max(0, (int) (tty * textureHeight)), textureHeight - 1);
     return new Col(textureRaster[(textureHeight - 1 - ty) * textureWidth + tx]);
   }
 
@@ -374,6 +379,8 @@ public class Shader {
         barycentricCoordinates[0] *= (1 - z) / (1 - v0z);
         barycentricCoordinates[1] *= (1 - z) / (1 - v1z);
         barycentricCoordinates[2] *= (1 - z) / (1 - v2z);
+        ttx = barycentricValue(texture[ft0], texture[ft1], texture[ft2], barycentricCoordinates);
+        tty = barycentricValue(texture[ft0 + 1], texture[ft1 + 1], texture[ft2 + 1], barycentricCoordinates);
         imageRaster[imageRasterXY] = visiblePixelMethod.getAsInt();
       }
     }
@@ -477,49 +484,6 @@ public class Shader {
 //      vertex[i * 3 + 2] = z / 2 + 0.5;
     };
     rasterization();
-  }
-
-  @Deprecated
-  public int[] run(int[] textureRaster, int textureWidth, int textureHeight,
-      Obj obj, double year) {
-    lightColor = new Col[]{new Col(0xFFFFFF)};
-    lightPoint = new double[]{-5000, 3000, 5000}; // DisplayStand
-    this.textureRaster = textureRaster;
-    this.textureWidth = textureWidth;
-    this.textureHeight = textureHeight;
-    this.face = obj.face;
-    this.texture = obj.texture == null ? new double[2] : obj.texture;
-    this.vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
-    this.vertexTrue = new double[obj.vertex.length];
-    this.normal = Arrays.copyOf(obj.normal, obj.normal.length);
-    double xyzmax = 0;
-    for (int i = 0; i < vertex.length; i += 3) xyzmax = Math.max(xyzmax, length(vertex, i, 3));
-    xyzmax *= 1.2;
-    for (int i = 0; i < vertex.length; i++) vertex[i] /= xyzmax;
-    int w2 = imageWidth / 2;
-    int h2 = imageHeight / 2;
-
-    rotate(vertex, year * 9, 1);
-    rotate(vertex, -23.44 / 360, 0);
-    rotate(vertex, year, 1);
-    rotate(normal, year * 9, 1);
-    rotate(normal, -23.44 / 360, 0);
-    rotate(normal, year, 1);
-    for (int i = 0; i < vertex.length / 3; i++) {
-      double x = vertex[i * 3];
-      double y = vertex[i * 3 + 1];
-      double z = vertex[i * 3 + 2];
-      vertexTrue[i * 3] = x;
-      vertexTrue[i * 3 + 1] = y;
-      vertexTrue[i * 3 + 2] = z;
-      double d = h2 * 5 / (5 - z);
-      vertex[i * 3] = w2 + x * d;
-      // FIXME: 2025-09-29 get rid of left completely
-      vertex[i * 3 + 1] = h2 - y * d; // left
-      vertex[i * 3 + 2] = z / 2 + 0.5;
-    };
-    rasterization();
-    return imageRaster;
   }
 
 }

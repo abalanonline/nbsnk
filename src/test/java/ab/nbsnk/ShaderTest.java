@@ -17,8 +17,10 @@
 
 package ab.nbsnk;
 
+import Jama.Matrix;
 import ab.jnc3.Screen;
 import ab.nbsnk.nodes.Col;
+import ab.nbsnk.nodes.Pnt;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -88,6 +90,15 @@ class ShaderTest {
     runShader(screen, obj, null);
   }
 
+  public static double length(double[] vector, int i, int size) {
+    double length = 0;
+    for (int j = 0; j < size; j++) {
+      double v = vector[i++];
+      length += v * v;
+    }
+    return Math.sqrt(length);
+  }
+
   void runShader(Screen screen, Obj obj, BufferedImage texture) {
     int[] textureRaster = null;
     int textureWidth = 0;
@@ -100,6 +111,11 @@ class ShaderTest {
         for (int x = 0; x < textureWidth; x++) textureRaster[y * textureWidth + x] = texture.getRGB(x, y);
       }
     }
+    double xyzmax = 0;
+    for (int i = 0; i < obj.vertex.length; i += 3) xyzmax = Math.max(xyzmax, length(obj.vertex, i, 3));
+    xyzmax *= 1.2;
+    for (int i = 0; i < obj.vertex.length; i++) obj.vertex[i] /= xyzmax;
+
     Obj flat = obj.clone();
     Obj.flatNormal(flat);
     Obj smooth = obj;
@@ -132,9 +148,19 @@ class ShaderTest {
       }
       mode.set(0);
       shader.cls();
-      int[] buffer = shader.run(textureRaster, textureWidth, textureHeight,
-          obj, Instant.now().toEpochMilli() / 60_000.0);
-      screen.image.getRaster().setDataElements(0, 0, width, height, buffer);
+      shader.textureRaster = textureRaster;
+      shader.textureWidth = textureWidth;
+      shader.textureHeight = textureHeight;
+      shader.addLight(new Pnt(-5000, 3000, 5000), new Col(-1));
+      double year = Instant.now().toEpochMilli() / 60_000.0;
+      Matrix matrix = EngineNbs.IDENTITY;
+      matrix = EngineNbs.multiply(matrix, 0, 0, -4, 0, 0, 0);
+      matrix = EngineNbs.multiply(matrix, 0, 0, 0, 0, year, 0);
+      matrix = EngineNbs.multiply(matrix, 0, 0, 0, -23.44 / 360, 0, 0);
+      matrix = EngineNbs.multiply(matrix, 0, 0, 0, 0, year * 9, 0);
+      shader.add(obj, matrix);
+      //int[] buffer = shader.run(obj, year);
+      screen.image.getRaster().setDataElements(0, 0, width, height, shader.imageRaster);
       graphics.drawString(String.format("fps: %.0f", fpsMeter.getFps()), 20, 20);
       screen.update();
     }

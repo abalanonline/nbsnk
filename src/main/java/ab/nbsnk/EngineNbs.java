@@ -32,7 +32,7 @@ import java.util.Set;
 
 public class EngineNbs implements Engine3d {
 
-  private static final Matrix IDENTITY = new Matrix(new double[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 4);
+  public static final Matrix IDENTITY = new Matrix(new double[]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 4);
   private int imageWidth;
   private int imageHeight;
   private int[] imageRaster;
@@ -44,6 +44,40 @@ public class EngineNbs implements Engine3d {
   private FpsMeter fpsMeter;
   private Map<BufferedImage, int[]> imageCache = new HashMap<>();
   private Col ambientColor = new Col();
+
+  public static Matrix multiply(Matrix matrix, double tx, double ty, double tz, double rx, double ry, double rz) {
+    Matrix t = new Matrix(new double[][]{
+        {1, 0, 0, tx},
+        {0, 1, 0, ty},
+        {0, 0, 1, tz},
+        {0, 0, 0, 1},
+    });
+    double s = Math.sin(2 * Math.PI * rz);
+    double c = Math.cos(2 * Math.PI * rz);
+    Matrix mrz = new Matrix(new double[][]{
+        {c,-s, 0, 0},
+        {s, c, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1},
+    });
+    s = Math.sin(2 * Math.PI * rx);
+    c = Math.cos(2 * Math.PI * rx);
+    Matrix mrx = new Matrix(new double[][]{
+        {1, 0, 0, 0},
+        {0, c,-s, 0},
+        {0, s, c, 0},
+        {0, 0, 0, 1},
+    });
+    s = Math.sin(2 * Math.PI * ry);
+    c = Math.cos(2 * Math.PI * ry);
+    Matrix mry = new Matrix(new double[][]{
+        {c, 0, s, 0},
+        {0, 1, 0, 0},
+        {-s,0, c, 0},
+        {0, 0, 0, 1},
+    });
+    return matrix.times(t).times(mry).times(mrx).times(mrz);
+  }
 
   @Override
   public EngineNbs open(BufferedImage image) {
@@ -235,37 +269,7 @@ public class EngineNbs implements Engine3d {
     }
 
     private Matrix multiply(Matrix matrix) {
-      Matrix t = new Matrix(new double[][]{
-          {1, 0, 0, this.tx},
-          {0, 1, 0, this.ty},
-          {0, 0, 1, this.tz},
-          {0, 0, 0, 1},
-      });
-      double s = Math.sin(2 * Math.PI * this.rz);
-      double c = Math.cos(2 * Math.PI * this.rz);
-      Matrix rz = new Matrix(new double[][]{
-          {c,-s, 0, 0},
-          {s, c, 0, 0},
-          {0, 0, 1, 0},
-          {0, 0, 0, 1},
-      });
-      s = Math.sin(2 * Math.PI * this.rx);
-      c = Math.cos(2 * Math.PI * this.rx);
-      Matrix rx = new Matrix(new double[][]{
-          {1, 0, 0, 0},
-          {0, c,-s, 0},
-          {0, s, c, 0},
-          {0, 0, 0, 1},
-      });
-      s = Math.sin(2 * Math.PI * this.ry);
-      c = Math.cos(2 * Math.PI * this.ry);
-      Matrix ry = new Matrix(new double[][]{
-          {c, 0, s, 0},
-          {0, 1, 0, 0},
-          {-s,0, c, 0},
-          {0, 0, 0, 1},
-      });
-      return matrix.times(t).times(ry).times(rx).times(rz).times(this.pivot);
+      return EngineNbs.multiply(matrix, this.tx, this.ty, this.tz, this.rx, this.ry, this.rz).times(this.pivot);
     }
 
     @Override
