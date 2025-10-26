@@ -60,7 +60,9 @@ public class SketchBumpReflection {
     int screenWidth = screen.image.getWidth();
     BufferedImage background = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_ARGB);
     Sketch2.renderNoise(background);
-    Engine3d engine3d = new EngineDual().open(screen.image).showFps().background(background);
+    FpsMeter fpsMeter = new FpsMeter();
+    Engine3d engine3d = new EngineDual().open(screen.image)
+        .textSupplier(() -> String.format("fps: %.0f", fpsMeter.getFps())).background(background);
     Queue<String> keyListener = new LinkedBlockingQueue<>();
     screen.keyListener = keyListener::add;
     boolean[] gamepadButton = new boolean[10];

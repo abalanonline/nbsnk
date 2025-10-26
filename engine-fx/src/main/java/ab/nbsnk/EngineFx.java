@@ -17,7 +17,6 @@
 
 package ab.nbsnk;
 
-import ab.nbsnk.nodes.Col;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.AmbientLight;
@@ -47,6 +46,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
+import java.util.function.Supplier;
 
 /**
  * https://openjfx.io/javadoc/24/javafx.graphics/javafx/scene/paint/PhongMaterial.html
@@ -65,7 +65,7 @@ public class EngineFx implements Engine3d {
   private int imageHeight;
   private BufferedImage image;
   private NodeFx camera;
-  private FpsMeter fpsMeter;
+  private Supplier<String> textSupplier;
   private Map<BufferedImage, Image> imageCache = new HashMap<>();
 
   public static TriangleMesh loadObj(Obj obj) {
@@ -217,11 +217,10 @@ public class EngineFx implements Engine3d {
     JavaFx.App.writableImage.getPixelReader()
         .getPixels(0, 0, imageWidth, imageHeight, PixelFormat.getIntArgbInstance(), data, 0, imageWidth);
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, data);
-    if (fpsMeter != null) {
-      String fps = String.format("fps: %.0f", fpsMeter.getFps());
+    if (textSupplier != null) {
       Graphics graphics = image.createGraphics();
       graphics.setColor(java.awt.Color.DARK_GRAY);
-      graphics.drawString(fps, 2, imageHeight - 4);
+      graphics.drawString(textSupplier.get(), 2, imageHeight - 4);
     }
   }
 
@@ -230,8 +229,8 @@ public class EngineFx implements Engine3d {
   }
 
   @Override
-  public EngineFx showFps() {
-    fpsMeter = new FpsMeter();
+  public EngineFx textSupplier(Supplier<String> supplier) {
+    textSupplier = supplier;
     return this;
   }
 
@@ -377,13 +376,18 @@ public class EngineFx implements Engine3d {
       Image image = material.getDiffuseMap();
       material.setDiffuseMap(null);
       if ((color & 0xFFFFFF) != 0xFFFFFF) {
-        Col mul = new Col(color);
+        double rMul = (color >> 16 & 0xFF) / 255.0;
+        double gMul = (color >> 8 & 0xFF) / 255.0;
+        double bMul = (color & 0xFF) / 255.0;
         int width = (int) image.getWidth();
         int height = (int) image.getHeight();
         int[] data = new int[width * height];
         image.getPixelReader().getPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), data, 0, width);
         for (int i = 0; i < data.length; i++) {
-          data[i] = new Col(data[i]).mul(mul).rgb();
+          double r = rMul * (data[i] >> 16 & 0xFF);
+          double g = gMul * (data[i] >> 8 & 0xFF);
+          double b = bMul * (data[i] & 0xFF);
+          data[i] = 0xFF000000 | (int) r << 16 | (int) g << 8 | (int) b;
         }
         WritableImage writableImage = new WritableImage(width, height);
         writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), data, 0, width);

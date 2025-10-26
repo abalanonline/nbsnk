@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
 public class EngineNbs implements Engine3d {
 
@@ -41,7 +42,7 @@ public class EngineNbs implements Engine3d {
   private int[] background;
   private Set<NodeNbs> root = new HashSet<>();
   private NodeNbs camera;
-  private FpsMeter fpsMeter;
+  private Supplier<String> textSupplier;
   private Map<BufferedImage, int[]> imageCache = new HashMap<>();
   private Col ambientColor = new Col();
 
@@ -200,11 +201,10 @@ public class EngineNbs implements Engine3d {
       throw new IllegalStateException();
     }
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
-    if (fpsMeter != null) {
-      String fps = String.format("fps: %.0f", fpsMeter.getFps());
+    if (textSupplier != null) {
       Graphics graphics = image.createGraphics();
       graphics.setColor(java.awt.Color.DARK_GRAY);
-      graphics.drawString(fps, 2, imageHeight - 4);
+      graphics.drawString(textSupplier.get(), 2, imageHeight - 4);
     }
   }
 
@@ -223,8 +223,8 @@ public class EngineNbs implements Engine3d {
   }
 
   @Override
-  public EngineNbs showFps() {
-    fpsMeter = new FpsMeter();
+  public EngineNbs textSupplier(Supplier<String> supplier) {
+    textSupplier = supplier;
     return this;
   }
 

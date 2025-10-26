@@ -18,6 +18,7 @@
 package ab.nbsnk;
 
 import java.awt.image.BufferedImage;
+import java.util.function.Supplier;
 
 /**
  * Conventions: right-handed system, Y up, distances in meters, angles in turns [0,1).
@@ -51,7 +52,7 @@ public interface Engine3d extends AutoCloseable {
    */
   void sysex(int i);
 
-  Engine3d showFps();
+  Engine3d textSupplier(Supplier<String> supplier);
 
   @Override
   void close();

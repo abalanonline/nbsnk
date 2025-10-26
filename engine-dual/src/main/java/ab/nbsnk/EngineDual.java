@@ -23,6 +23,7 @@ import java.awt.image.BufferedImage;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -37,7 +38,7 @@ public class EngineDual implements Engine3d {
   private BufferedImage image;
   private BufferedImage imageLeft;
   private BufferedImage imageRight;
-  private FpsMeter fpsMeter;
+  private Supplier<String> textSupplier;
 
   public EngineDual() {
     this.engineLeft = new EngineNbs();
@@ -159,11 +160,10 @@ public class EngineDual implements Engine3d {
     //graphics.drawImage(imageLeft, imageWidth - thumbWidth * 3, height, thumbWidth, thumbHeight, null);
     //graphics.drawImage(imageRight, imageWidth - thumbWidth * 2, height, thumbWidth, thumbHeight, null);
     graphics.drawImage(compare, imageWidth - thumbWidth, height, thumbWidth, thumbHeight, null);
-    if (fpsMeter != null) {
-      String fps = String.format("fps: %.0f", fpsMeter.getFps());
+    if (textSupplier != null) {
       graphics.setColor(java.awt.Color.DARK_GRAY);
       graphics.clearRect(0, imageHeight - 40, 100, 40);
-      graphics.drawString(fps, 20, imageHeight - 20);
+      graphics.drawString(textSupplier.get(), 20, imageHeight - 20);
     }
   }
 
@@ -174,8 +174,8 @@ public class EngineDual implements Engine3d {
   }
 
   @Override
-  public EngineDual showFps() {
-    fpsMeter = new FpsMeter();
+  public EngineDual textSupplier(Supplier<String> supplier) {
+    textSupplier = supplier;
     return this;
   }
 
