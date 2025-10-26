@@ -265,6 +265,13 @@ public class EngineDual implements Engine3d {
       ((Shape) this.nodeRight).setBumpMap(image);
       return this;
     }
+
+    @Override
+    public ShapeDual setReflectionMap(BufferedImage image, double alpha, Node skybox) {
+      ((Shape) this.nodeLeft).setReflectionMap(image, alpha, ((NodeDual) skybox).nodeLeft);
+      ((Shape) this.nodeRight).setReflectionMap(image, alpha, ((NodeDual) skybox).nodeRight);
+      return this;
+    }
   }
 
   private static class GroupDual extends NodeDual implements Group {

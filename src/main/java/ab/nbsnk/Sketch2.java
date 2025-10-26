@@ -162,7 +162,7 @@ public class Sketch2 {
     engine3d.shape(teapot).translation(-10, 4, -40).rotation(0.0, 0.0, 0.1); // positive roll
     engine3d.shape(teapot).translation(-10, 0, -40).rotation(0.0, 0.1, 0.0); // positive pitch
     engine3d.shape(teapot).setSpecular(0xFFFFFFFF, 20).translation(-10, -4, -40).rotation(0.1, 0.0, 0.0); // positive yaw
-    engine3d.shape(teapot).translation(-10, -8, -40).rotation(0.25, 0.1, 0.0); // yaw 1/4 then pitch
+    engine3d.shape(teapot).setSpecular(0xFF0000FF, 1).translation(-10, -8, -40).rotation(0.25, 0.1, 0.0); // yaw 1/4 then pitch
     engine3d.shape(cow).setSpecular(0xFF003FFF, 20).translation(5, 4, -20);
     engine3d.shape(teapot).translation(10, 4, -40).rotation(0.25, 0.0, 0.1); // yaw 1/4 then roll
     engine3d.shape(teapot).translation(10, 0, -40).rotation(0.0, 0.25, 0.25); // pitch 1/4 then roll 1/4

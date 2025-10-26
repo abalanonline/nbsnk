@@ -55,6 +55,11 @@ public class Shader {
   public int[] bumpRaster;
   public int bumpWidth;
   public int bumpHeight;
+  public int[] reflectionRaster;
+  public int reflectionWidth;
+  public int reflectionHeight;
+  public double reflectionAlpha;
+  public Matrix reflectionMatrix;
 
   public Col ambientColor = new Col();
   public Col diffuseColor = new Col(-1);
@@ -169,7 +174,23 @@ public class Shader {
     double y = barycentricPosition[1];
     double z = barycentricPosition[2];
     Col[] diffuseSpecular = illuminationRgb(x, y, z, barycentricNormal, 0, viewer, imageRasterXY * 3);
-    return getTextureColor().mul(diffuseSpecular[0]).add(diffuseSpecular[1], 1).rgb();
+    Col color = getTextureColor().mul(diffuseSpecular[0]).add(diffuseSpecular[1], 1);
+    if (reflectionAlpha > 0) {
+      double dotVN = dotProduct(barycentricNormal, 0, viewer, imageRasterXY * 3);
+      double[] R = {
+          2 * dotVN * barycentricNormal[0] - viewer[imageRasterXY * 3],
+          2 * dotVN * barycentricNormal[1] - viewer[imageRasterXY * 3 + 1],
+          2 * dotVN * barycentricNormal[2] - viewer[imageRasterXY * 3 + 2]
+      };
+      normalize(R);
+      Matrix r1 = reflectionMatrix.times(new Matrix(new double[]{R[0], R[1], R[2], 0}, 4));
+      int reflectionY = Math.min(Math.max(0, (int) Math.round((0.5 - Math.asin(r1.get(1, 0)) / Math.PI) * reflectionHeight)), reflectionHeight - 1);
+      int reflectionX = (int) Math.round((1 - Math.atan2(r1.get(0, 0), r1.get(2, 0)) / Math.PI) / 2 * reflectionWidth);
+      reflectionX = (reflectionX % reflectionWidth + reflectionWidth) % reflectionWidth;
+      color = new Col().add(color, 1 - reflectionAlpha)
+          .add(new Col(reflectionRaster[reflectionY * reflectionWidth + reflectionX]), reflectionAlpha);
+    }
+    return color.rgb();
   }
 
   public Col[] illuminationRgb(double x, double y, double z, double[] normal, int in, double[] viewer, int iv) {

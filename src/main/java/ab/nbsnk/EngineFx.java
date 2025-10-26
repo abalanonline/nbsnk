@@ -49,12 +49,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 
 /**
+ * https://openjfx.io/javadoc/24/javafx.graphics/javafx/scene/paint/PhongMaterial.html
  * JavaFx limitations:
  * Always Phong, no way to switch to flat shading
  * No light attenuation with distance
  * No shadows
  * Missing setSelfIlluminationColor method that can change the brightness or color
  * of setSelfIlluminationMap the similar way as setDiffuseColor can alter setDiffuseMap
+ * No ambient light per shape, only global AmbientLight
+ * No reflection mapping
  */
 public class EngineFx implements Engine3d {
 
@@ -394,6 +397,11 @@ public class EngineFx implements Engine3d {
     @Override
     public ShapeFx setBumpMap(BufferedImage image) {
       material.setBumpMap(imageCache.computeIfAbsent(image, EngineFx::loadImg));
+      return this;
+    }
+
+    @Override
+    public ShapeFx setReflectionMap(BufferedImage image, double alpha, Node skybox) {
       return this;
     }
   }

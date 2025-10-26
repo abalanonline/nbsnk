@@ -144,11 +144,7 @@ public class EngineNbs implements Engine3d {
         dfs(((GroupNbs) node).groupNode, t, map);
         continue;
       }
-      if (node instanceof ShapeNbs || node instanceof LightNbs) {
-        map.put(node, t);
-        continue;
-      }
-      throw new IllegalStateException();
+      map.put(node, t);
     }
   }
 
@@ -162,10 +158,11 @@ public class EngineNbs implements Engine3d {
     }
     shader.imageRaster = this.imageRaster;
     Map<NodeNbs, Matrix> map = new LinkedHashMap<>();
-    dfs(root, this.camera.multiply(IDENTITY).inverse(), map);
+    dfs(root, IDENTITY, map);
+    final Matrix cameraMatrix = map.getOrDefault(this.camera, this.camera.multiply(IDENTITY)).inverse();
     map.entrySet().stream().filter(e -> e.getKey() instanceof LightNbs)
         .forEach(e -> {
-          Matrix xyz = e.getValue().times(new Matrix(new double[]{0, 0, 0, 1}, 4));
+          Matrix xyz = cameraMatrix.times(e.getValue()).times(new Matrix(new double[]{0, 0, 0, 1}, 4));
           Pnt pnt = new Pnt(xyz.get(0, 0), xyz.get(1, 0), xyz.get(2, 0));
           int color = ((LightNbs) e.getKey()).color;
           shader.addLight(pnt, new Col(color));
@@ -175,7 +172,7 @@ public class EngineNbs implements Engine3d {
     if (shader.lights.isEmpty()) shader.addLight(new Pnt(), new Col(-1));
     for (Map.Entry<NodeNbs, Matrix> entry : map.entrySet()) {
       NodeNbs node = entry.getKey();
-      if (node instanceof LightNbs) continue;
+      if (node instanceof LightNbs || node == this.camera) continue;
       if (node instanceof ShapeNbs) {
         ShapeNbs shape = (ShapeNbs) node;
         Shader.Illumination enableIllumination = shader.enableIllumination;
@@ -191,7 +188,12 @@ public class EngineNbs implements Engine3d {
         shader.bumpWidth = shape.bumpWidth;
         shader.bumpHeight = shape.bumpHeight;
         shader.tangentBitangent = shape.tangentBitangent;
-        shader.add(shape.obj, entry.getValue());
+        shader.reflectionRaster = shape.reflectionRaster;
+        shader.reflectionWidth = shape.reflectionWidth;
+        shader.reflectionHeight = shape.reflectionHeight;
+        shader.reflectionAlpha = shape.reflectionAlpha;
+        shader.reflectionMatrix = cameraMatrix.times(map.getOrDefault(shape.reflectionSkybox, IDENTITY)).inverse();
+        shader.add(shape.obj, cameraMatrix.times(entry.getValue()));
         if (shape.selfIllumination) shader.enableIllumination = enableIllumination;
         continue;
       }
@@ -314,6 +316,11 @@ public class EngineNbs implements Engine3d {
     private double specularPower = 32;
     private boolean selfIllumination;
     private double[] tangentBitangent;
+    private int[] reflectionRaster;
+    private int reflectionWidth;
+    private int reflectionHeight;
+    private double reflectionAlpha;
+    private NodeNbs reflectionSkybox;
 
     public ShapeNbs(Obj obj) {
       this.obj = obj.clone();
@@ -356,6 +363,16 @@ public class EngineNbs implements Engine3d {
       this.bumpWidth = image.getWidth();
       this.bumpHeight = image.getHeight();
       this.bumpRaster = imageCache.computeIfAbsent(image, EngineNbs::loadImg);
+      return this;
+    }
+
+    @Override
+    public ShapeNbs setReflectionMap(BufferedImage image, double alpha, Node skybox) {
+      this.reflectionWidth = image.getWidth();
+      this.reflectionHeight = image.getHeight();
+      this.reflectionRaster = imageCache.computeIfAbsent(image, EngineNbs::loadImg);
+      this.reflectionAlpha = alpha;
+      this.reflectionSkybox = (NodeNbs) skybox;
       return this;
     }
   }

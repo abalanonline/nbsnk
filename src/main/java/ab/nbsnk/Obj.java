@@ -312,4 +312,29 @@ public class Obj {
     }
   }
 
+  public Obj withImage(Path path) {
+    this.image = image(path);
+    return this;
+  }
+
+  public Obj withImage(BufferedImage image) {
+    this.image = image;
+    return this;
+  }
+
+  public Obj inverted() {
+    // invert normals
+    for (int i = 0; i < this.face.length; i += 9) {
+      int v = this.face[i + 3];
+      this.face[i + 3] = this.face[i + 6];
+      this.face[i + 6] = v;
+      int t = this.face[i + 5];
+      this.face[i + 5] = this.face[i + 8];
+      this.face[i + 8] = t;
+    }
+    // invert texture
+    for (int i = 0; i < this.texture.length; i += 2) this.texture[i] = 1 - this.texture[i];
+    return this;
+  }
+
 }

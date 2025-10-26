@@ -87,6 +87,8 @@ public interface Engine3d extends AutoCloseable {
 
     // although it is a normal map, the word bump makes it instantly understood
     Shape setBumpMap(BufferedImage image);
+
+    Shape setReflectionMap(BufferedImage image, double alpha, Node skybox);
   }
 
   interface Group extends Node {}

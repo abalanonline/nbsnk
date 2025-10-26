@@ -63,14 +63,22 @@ public class SketchBumpReflection {
     Engine3d engine3d = new EngineDual().open(screen.image).showFps().background(background);
     Queue<String> keyListener = new LinkedBlockingQueue<>();
     screen.keyListener = keyListener::add;
-    double[] gamepadAxis = new double[3];
+    boolean[] gamepadButton = new boolean[10];
+    double[] gamepadAxis = new double[9];
     boolean systemExit = false;
+    BufferedImage photosphere = Obj.image(Paths.get("assets/reflection_sphere.jpg"));
+    Engine3d.Group cameraRails = engine3d.group();
+    Engine3d.Group cameraRig = (Engine3d.Group) engine3d.group().translation(0, 0, 5).connect(cameraRails);
+    Engine3d.Node camera = engine3d.camera().connect(cameraRig);
+    Engine3d.Node sky = engine3d.shape(Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj"))
+        .interpolateNormal().scale(95).ry90().inverted()
+        .withImage(photosphere)).selfIllumination(-1).connect(cameraRig);
 
     // shapes
-    Obj obj0 = obj1;
-    BufferedImage obj0bump = obj1bump;
-//    obj0 = obj2; obj0bump = obj2bump;
-    Engine3d.Node node = engine3d.shape(obj0).setBumpMap(obj0bump).setSpecular(-1, 100).translation(0, 0, -5);
+//    Engine3d.Node node = engine3d.shape(obj1).setBumpMap(obj1bump).setSpecular(-1, 100);
+    Obj obj = Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj")).interpolateNormal();
+    Engine3d.Node node = engine3d.shape(obj)
+        .setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sky);
     engine3d.light().setColor(0xFFBF7F).translation(-100, 100, 100);
     //engine3d.camera().translation(5, 0, -5).rotation(-0.25, 0, 0);
 
@@ -82,13 +90,25 @@ public class SketchBumpReflection {
           char bw = key.charAt(6);
           if (bw <= '9') {
             String[] xys = key.substring(5).split(",");
-            gamepadAxis[0] -= Integer.parseInt(xys[0]);
-            gamepadAxis[1] += Integer.parseInt(xys[1]);
+            int axis = (gamepadButton[1] ? 2 : 0) + (gamepadButton[3] ? 4 : 0);
+            gamepadAxis[axis] -= Integer.parseInt(xys[0]);
+            gamepadAxis[axis + 1] += Integer.parseInt(xys[1]);
           }
-          if (bw == 'W') gamepadAxis[2] += (key.charAt(5) == '+') ? 1 : -1;
+          if (bw == 'W') gamepadAxis[8] += (key.charAt(5) == '+') ? 1 : -1;
+          if (bw == 'B') {
+            int button = key.charAt(7) - '0';
+            boolean buttonOn = key.charAt(5) == '+';
+            gamepadButton[button] = buttonOn;
+          }
         }
       }
-      node.rotation(gamepadAxis[0] / 1000.0, gamepadAxis[1] / 1000.0, gamepadAxis[2] / 12.0);
+      node.rotation(gamepadAxis[0] / 1000.0, gamepadAxis[1] / 1000.0, gamepadAxis[8] / 12.0);
+      double cameraYaw = gamepadAxis[2] / 1000.0;
+      double cameraPitch = gamepadAxis[3] / 1000.0;
+      cameraRails.rotation(cameraYaw, cameraPitch, 0);
+      cameraRig.rotation(0, -cameraPitch, 0);
+      sky.rotation(-cameraYaw, 0, 0);
+      camera.rotation(0, cameraPitch, 0);
       engine3d.update();
       screen.update();
       try { Thread.sleep(20); } catch (InterruptedException ignore) {}
