@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2025 Aleksei Balan
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+    https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>ab</groupId>
+  <artifactId>nbsnk-aggregator</artifactId>
+  <version>0.0</version>
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>engine-api</module>
+    <module>engine</module>
+    <module>engine-fx</module>
+    <module>engine-dual</module>
+    <module>demo</module>
+  </modules>
+
+  <properties>
+    <!-- aggregator project, bypass installation and deploy -->
+    <maven.install.skip>true</maven.install.skip>
+    <maven.deploy.skip>true</maven.deploy.skip>
+  </properties>
+
+</project>

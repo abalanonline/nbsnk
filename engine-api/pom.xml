@@ -24,7 +24,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>ab.nbsnk</groupId>
-  <artifactId>demo</artifactId>
+  <artifactId>engine-api</artifactId>
   <version>1.0</version>
 
   <properties>
@@ -33,48 +33,14 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <exec.mainClass>ab.nbsnk.Sketch2</exec.mainClass>
   </properties>
 
   <dependencies>
     <dependency>
-      <groupId>ab.nbsnk</groupId>
-      <artifactId>engine-dual</artifactId>
-      <version>1.0</version>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <version>5.18.0</version>
-      <scope>test</scope>
+      <groupId>ab.jnc</groupId>
+      <artifactId>screen</artifactId>
+      <version>3.0</version>
     </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.6</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <mainClass>${exec.mainClass}</mainClass>
-            </manifest>
-          </archive>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
 
 </project>
