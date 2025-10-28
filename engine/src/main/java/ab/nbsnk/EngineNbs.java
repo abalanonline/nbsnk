@@ -40,6 +40,7 @@ public class EngineNbs implements Engine3d {
   private Shader shader;
   private BufferedImage image;
   private int[] background;
+  private BufferedImage backgroundImage;
   private Set<NodeNbs> root = new HashSet<>();
   private NodeNbs camera;
   private Supplier<String> textSupplier;
@@ -80,6 +81,10 @@ public class EngineNbs implements Engine3d {
     return matrix.times(t).times(mry).times(mrx).times(mrz);
   }
 
+  public EngineNbs() {
+    this.camera = new NodeNbs();
+  }
+
   @Override
   public EngineNbs open(BufferedImage image) {
     this.imageWidth = image.getWidth();
@@ -87,20 +92,23 @@ public class EngineNbs implements Engine3d {
     this.imageRaster = new int[imageWidth * imageHeight];
     this.image = image;
     this.shader = new Shader(imageWidth, imageHeight);
-    this.camera = new NodeNbs();
-    root.remove(this.camera); // disconnect from the scene
+    applyBackground();
     return this;
+  }
+
+  private void applyBackground() {
+    background = null;
+    if (imageWidth == 0 || imageHeight == 0 || backgroundImage == null) return;
+    BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
+    image.getGraphics().drawImage(backgroundImage, 0, 0, null);
+    background = new int[imageWidth * imageHeight];
+    image.getRaster().getDataElements(0, 0, imageWidth, imageHeight, background);
   }
 
   @Override
   public EngineNbs background(BufferedImage image) {
-    if (image == null) {
-      background = null;
-      return this;
-    }
-    if (image.getWidth() != imageWidth || image.getHeight() != imageHeight) throw new IllegalArgumentException();
-    background = new int[imageWidth * imageHeight];
-    image.getRaster().getDataElements(0, 0, imageWidth, imageHeight, background);
+    backgroundImage = image;
+    applyBackground();
     return this;
   }
 
@@ -160,7 +168,7 @@ public class EngineNbs implements Engine3d {
     shader.imageRaster = this.imageRaster;
     Map<NodeNbs, Matrix> map = new LinkedHashMap<>();
     dfs(root, IDENTITY, map);
-    final Matrix cameraMatrix = map.getOrDefault(this.camera, this.camera.multiply(IDENTITY)).inverse();
+    final Matrix cameraMatrix = map.get(this.camera).inverse();
     map.entrySet().stream().filter(e -> e.getKey() instanceof LightNbs)
         .forEach(e -> {
           Matrix xyz = cameraMatrix.times(e.getValue()).times(new Matrix(new double[]{0, 0, 0, 1}, 4));

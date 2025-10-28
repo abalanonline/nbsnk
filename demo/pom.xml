@@ -38,6 +38,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>ab.jnc</groupId>
+      <artifactId>screen</artifactId>
+      <version>3.0</version>
+    </dependency>
+    <dependency>
       <groupId>ab.nbsnk</groupId>
       <artifactId>engine-dual</artifactId>
       <version>1.0</version>

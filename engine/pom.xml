@@ -53,6 +53,12 @@
       <version>5.18.0</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>ab.jnc</groupId>
+      <artifactId>screen</artifactId>
+      <version>3.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
 </project>

@@ -82,11 +82,8 @@ public class EngineDual implements Engine3d {
 
   @Override
   public EngineDual background(BufferedImage image) {
-    int height = imageHeight - imageHeight / IMGDIV;
-    BufferedImage crop = new BufferedImage(imageWidth / 2, height, BufferedImage.TYPE_INT_ARGB);
-    crop.getGraphics().drawImage(image, 0, 0, null);
-    engineLeft.background(crop);
-    engineRight.background(crop);
+    engineLeft.background(image);
+    engineRight.background(image);
     return this;
   }
 

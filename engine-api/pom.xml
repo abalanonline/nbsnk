@@ -35,12 +35,4 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
 
-  <dependencies>
-    <dependency>
-      <groupId>ab.jnc</groupId>
-      <artifactId>screen</artifactId>
-      <version>3.0</version>
-    </dependency>
-  </dependencies>
-
 </project>

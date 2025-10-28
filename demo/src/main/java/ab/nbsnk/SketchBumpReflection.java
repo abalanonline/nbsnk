@@ -37,7 +37,7 @@ public class SketchBumpReflection {
     BufferedImage obj1bump = new BufferedImage(2048, 2048, BufferedImage.TYPE_INT_ARGB);
     obj1bump.getGraphics().drawImage(normalMapExampleWithSceneAndResult, -2048, 0, null);
     //obj1bump.getGraphics().drawImage(normalMapExampleWithSceneAndResult, -2048, 2048, 2048 * 3, -2048, null);
-    try { ImageIO.write(obj1bump, "png", new File("assets/test.png")); } catch (IOException ignore) {}
+    //try { ImageIO.write(obj1bump, "png", new File("assets/test.png")); } catch (IOException ignore) {}
     Obj obj1 = new Shapes.Square();
     //obj1.texture = new double[]{1, 0.5, 0.5, 1, 0, 0.5, 0.5, 0,};
 
@@ -52,19 +52,13 @@ public class SketchBumpReflection {
     Obj obj2 = Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj")).interpolateNormal(); // HD sphere
     obj2.image = obj2image;
 
-    Screen screen = new Screen();
-    screen.gameController = true;
-    screen.image = new BufferedImage(640, 360, BufferedImage.TYPE_INT_RGB);
-    screen.preferredSize = new Dimension(640, 360);
-    int screenHeight = screen.image.getHeight();
-    int screenWidth = screen.image.getWidth();
-    BufferedImage background = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_ARGB);
+    Dimension screenSize = new Dimension(640, 360);
+    BufferedImage background = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_ARGB);
     Sketch2.renderNoise(background);
     FpsMeter fpsMeter = new FpsMeter();
-    Engine3d engine3d = new EngineDual().open(screen.image)
+    Engine3d engine3d = new EngineDual()
         .textSupplier(() -> String.format("fps: %.0f", fpsMeter.getFps())).background(background);
     Queue<String> keyListener = new LinkedBlockingQueue<>();
-    screen.keyListener = keyListener::add;
     boolean[] gamepadButton = new boolean[10];
     double[] gamepadAxis = new double[9];
     boolean systemExit = false;
@@ -84,6 +78,12 @@ public class SketchBumpReflection {
     engine3d.light().setColor(0xFFBF7F).translation(-100, 100, 100);
     //engine3d.camera().translation(5, 0, -5).rotation(-0.25, 0, 0);
 
+    Screen screen = new Screen();
+    screen.gameController = true;
+    screen.image = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_RGB);
+    screen.preferredSize = screenSize;
+    screen.keyListener = keyListener::add;
+    engine3d.open(screen.image);
     while (!systemExit) {
       while (!keyListener.isEmpty()) {
         String key = keyListener.remove();

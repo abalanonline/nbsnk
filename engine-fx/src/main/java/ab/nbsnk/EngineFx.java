@@ -67,6 +67,11 @@ public class EngineFx implements Engine3d {
   private NodeFx camera;
   private Supplier<String> textSupplier;
   private Map<BufferedImage, Image> imageCache = new HashMap<>();
+  private BufferedImage backgroundImage;
+  private Scene scene;
+  private javafx.scene.Group root;
+  private AmbientLight ambientLight;
+  private PerspectiveCamera perspectiveCamera;
 
   public static TriangleMesh loadObj(Obj obj) {
     int[] faces = Arrays.copyOf(obj.face, obj.face.length);
@@ -138,36 +143,49 @@ public class EngineFx implements Engine3d {
     return Color.rgb(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF, (color >> 24 & 0xFF) / 255.0);
   }
 
-  @Override
-  public EngineFx open(BufferedImage image) {
+  public EngineFx() {
     System.setProperty("prism.forceGPU", "true");
     //assert com.sun.prism.impl.PrismSettings.forceGPU : "prism.forceGPU=true";
     if (!com.sun.prism.impl.PrismSettings.forceGPU) throw new AssertionError("prism.forceGPU=true");
+    this.ambientLight = new AmbientLight(Color.BLACK);
+    this.root = new javafx.scene.Group(this.ambientLight);
+    this.perspectiveCamera = new PerspectiveCamera(true);
+    this.perspectiveCamera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
+    this.camera = new NodeFx(this.perspectiveCamera);
+  }
+
+  @Override
+  public EngineFx open(BufferedImage image) {
     if (image.getType() != BufferedImage.TYPE_INT_RGB && image.getType() != BufferedImage.TYPE_INT_ARGB) throw new IllegalArgumentException();
     this.image = image;
     this.imageWidth = image.getWidth();
     this.imageHeight = image.getHeight();
 
-    JavaFx.App.imageWidth = this.imageWidth;
-    JavaFx.App.imageHeight = this.imageHeight;
+    this.scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
+    this.scene.setCamera(perspectiveCamera);
+    applyBackground();
     CompletableFuture.runAsync(() -> JavaFx.App.main(new String[0]));
     try {
       JavaFx.App.io.take();
     } catch (InterruptedException ignore) {}
-    this.camera = new NodeFx(JavaFx.App.camera);
     return this;
+  }
+
+  private void applyBackground() {
+    if (scene == null) return;
+    scene.setFill(null);
+    if (backgroundImage == null) return;
+    BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
+    int width = backgroundImage.getWidth();
+    int height = backgroundImage.getHeight();
+    image.getGraphics().drawImage(backgroundImage, 0, imageHeight, width, -height, null);
+    scene.setFill(new ImagePattern(loadImg(image)));
   }
 
   @Override
   public EngineFx background(BufferedImage image) {
-    if (image.getType() != BufferedImage.TYPE_INT_ARGB) throw new IllegalArgumentException();
-    int width = image.getWidth();
-    int height = image.getHeight();
-    WritableImage writableImage = new WritableImage(width, height);
-    int[] data = new int[width * height];
-    image.getRaster().getDataElements(0, 0, width, height, data);
-    writableImage.getPixelWriter().setPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), data, 0, width);
-    JavaFx.App.scene.setFill(new ImagePattern(writableImage));
+    backgroundImage = image;
+    applyBackground();
     return this;
   }
 
@@ -188,7 +206,7 @@ public class EngineFx implements Engine3d {
 
   @Override
   public EngineFx setAmbient(int color) {
-    JavaFx.App.ambientLight.setColor(color(color));
+    ambientLight.setColor(color(color));
     return this;
   }
 
@@ -199,22 +217,19 @@ public class EngineFx implements Engine3d {
 
   @Override
   public EngineFx setFarClip(double value) {
-    JavaFx.App.camera.setFarClip(value);
+    perspectiveCamera.setFarClip(value);
     return this;
-  }
-
-  private void snapshot() { // instrumentation ready
-    try {
-      JavaFx.App.io.put(this);
-      JavaFx.App.io.take();
-    } catch (InterruptedException ignore) {}
   }
 
   @Override
   public void update() {
-    snapshot();
+    JavaFx.App.scene = this.scene;
+    try {
+      JavaFx.App.io.put(this);
+      JavaFx.App.io.take();
+    } catch (InterruptedException ignore) {}
     int[] data = new int[imageWidth * imageHeight];
-    JavaFx.App.writableImage.getPixelReader()
+    JavaFx.App.snapshot.getPixelReader()
         .getPixels(0, 0, imageWidth, imageHeight, PixelFormat.getIntArgbInstance(), data, 0, imageWidth);
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, data);
     if (textSupplier != null) {
@@ -241,38 +256,23 @@ public class EngineFx implements Engine3d {
 
   private static class JavaFx { // private modifier for Application which is required to be public
     public static class App extends Application {
-      public static int imageWidth;
-      public static int imageHeight;
       public static Scene scene;
-      public static javafx.scene.Group root;
-      public static javafx.scene.AmbientLight ambientLight;
-      public static PerspectiveCamera camera;
-      public static WritableImage writableImage;
+      public static WritableImage snapshot;
       public static BlockingQueue<Object> io = new SynchronousQueue<>();
 
       @Override
-      public void start(Stage primaryStage) {
-        ambientLight = new AmbientLight(Color.BLACK);
-        root = new javafx.scene.Group(ambientLight);
-        scene = new Scene(root, imageWidth, imageHeight, true, SceneAntialiasing.DISABLED);
-        camera = new PerspectiveCamera(true);
-        camera.setFieldOfView(Math.atan2(24.0 / 2, 50.0) * 2 / (Math.PI * 2) * 360); // 50mm full frame
-        scene.setCamera(camera);
+      public void start(Stage stage) {
         //stage.setScene(scene);
         //stage.show(); // do not open a window
         while (true) {
           try {
             io.put(this); // ready
             io.take(); // wait for request
-            snapshot();
+            snapshot = scene.snapshot(snapshot);
           } catch (InterruptedException ignore) {
             break;
           }
         }
-      }
-
-      private static void snapshot() { // instrumentation ready
-        writableImage = scene.snapshot(writableImage);
       }
 
       public static void main(String[] args) {
@@ -281,7 +281,7 @@ public class EngineFx implements Engine3d {
     }
   }
 
-  private static class NodeFx implements Node {
+  private class NodeFx implements Node {
     protected final javafx.scene.Node node;
     private javafx.scene.Group group;
     private Translate t  = new Translate();
@@ -292,7 +292,7 @@ public class EngineFx implements Engine3d {
     private NodeFx(javafx.scene.Node node) {
       node.getTransforms().addAll(t, ry, rx, rz);
       this.node = node;
-      this.group = JavaFx.App.root;
+      this.group = root;
       this.group.getChildren().add(this.node);
     }
 
@@ -410,7 +410,7 @@ public class EngineFx implements Engine3d {
     }
   }
 
-  private static class GroupFx extends NodeFx implements Group {
+  private class GroupFx extends NodeFx implements Group {
 
     public GroupFx() {
       super(new javafx.scene.Group());
@@ -418,7 +418,7 @@ public class EngineFx implements Engine3d {
 
   }
 
-  private static class LightFx extends NodeFx implements Light {
+  private class LightFx extends NodeFx implements Light {
 
     public LightFx() {
       super(new PointLight(Color.WHITE));
