@@ -159,7 +159,7 @@ public class Shader {
           2 * dotVN * barycentricNormal.y - viewer.y,
           2 * dotVN * barycentricNormal.z - viewer.z
       ).normalize();
-      Matrix r1 = reflectionMatrix.times(new Matrix(new double[]{R.x, R.y, R.z, 0}, 4));
+      Matrix r1 = reflectionMatrix.times(R.toMatrix(0));
       int reflectionY = Math.min(Math.max(0, (int) Math.round((0.5 - Math.asin(r1.get(1, 0)) / Math.PI) * reflectionHeight)), reflectionHeight - 1);
       int reflectionX = (int) Math.round((1 - Math.atan2(r1.get(0, 0), r1.get(2, 0)) / Math.PI) / 2 * reflectionWidth);
       reflectionX = (reflectionX % reflectionWidth + reflectionWidth) % reflectionWidth;
@@ -427,31 +427,21 @@ public class Shader {
 //    rotate(vertex, transformation[3], 2);
 //    rotate(normal, transformation[3], 2);
     for (int i = 0; i < normal.length; i++) {
-      Matrix xyz = new Matrix(new double[]{obj.normal[i * 3], obj.normal[i * 3 + 1], obj.normal[i * 3 + 2], 0}, 4);
-      Matrix xyz1 = tm.times(xyz);
-      normal[i] = new Pnt(xyz1.get(0, 0), xyz1.get(1, 0), xyz1.get(2, 0));
+      Matrix xyz = tm.times(new Pnt(obj.normal, i * 3).toMatrix(0));
+      normal[i] = Pnt.fromMatrix(xyz);
     }
     tangentBitangent = tangentBitangent == null ? new Pnt[0] : Arrays.copyOf(tangentBitangent, tangentBitangent.length);
     for (int i = 0; i < tangentBitangent.length; i++) {
-      Pnt tb = tangentBitangent[i];
-      Matrix xyz = new Matrix(new double[]{tb.x, tb.y, tb.z, 0}, 4);
-      Matrix xyz1 = tm.times(xyz);
-      tangentBitangent[i] = new Pnt(xyz1.get(0, 0), xyz1.get(1, 0), xyz1.get(2, 0));
+      Matrix xyz = tm.times(tangentBitangent[i].toMatrix(0));
+      tangentBitangent[i] = Pnt.fromMatrix(xyz);
     }
     double w2 = imageWidth / 2.0 - 0.5;
     double h2 = imageHeight / 2.0 - 0.5;
     for (int i = 0; i < vertex.length; i++) {
-//      double x = vertex[i * 3] + transformation[0];
-//      double y = vertex[i * 3 + 1] + transformation[1];
-//      double z = vertex[i * 3 + 2] + transformation[2];
-      Matrix xyz = new Matrix(new double[]{obj.vertex[i * 3], obj.vertex[i * 3 + 1], obj.vertex[i * 3 + 2], 1}, 4);
-      Matrix xyz1 = tm.times(xyz);
-      double x = xyz1.get(0, 0);
-      double y = xyz1.get(1, 0);
-      double z = xyz1.get(2, 0);
-      vertexTrue[i] = new Pnt(x, y, z);
-      double d = focalLength / -z;
-      vertex[i] = new Pnt(w2 + x * d, h2 + y * d, (farClip + z) / farClip);
+      Matrix xyz = tm.times(new Pnt(obj.vertex, i * 3).toMatrix(1));
+      Pnt vt = Pnt.fromMatrix(xyz);
+      vertexTrue[i] = vt;
+      vertex[i] = new Pnt(w2 - focalLength * vt.x / vt.z, h2 - focalLength * vt.y / vt.z, (farClip + vt.z) / farClip);
     };
     rasterization();
   }

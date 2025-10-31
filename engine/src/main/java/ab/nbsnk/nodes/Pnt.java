@@ -17,6 +17,8 @@
 
 package ab.nbsnk.nodes;
 
+import Jama.Matrix;
+
 public class Pnt {
   public double x;
   public double y;
@@ -29,6 +31,13 @@ public class Pnt {
     this.x = x;
     this.y = y;
     this.z = z;
+  }
+
+  @Deprecated
+  public Pnt(double[] d, int di) {
+    this.x = d[di];
+    this.y = d[di + 1];
+    this.z = d[di + 2];
   }
 
   @Override
@@ -62,6 +71,13 @@ public class Pnt {
       a.z * v[0] + b.z * v[1] + c.z * v[2]);
   }
 
-  // TODO: 2025-10-31 getMatrix
+  public Matrix toMatrix(double t) {
+    //return new Matrix(new double[]{x, y, z, t}, 4);
+    return new Matrix(new double[][]{{x}, {y}, {z}, {t}}, 4, 1);
+  }
+
+  public static Pnt fromMatrix(Matrix matrix) {
+    return new Pnt(matrix.get(0, 0), matrix.get(1, 0), matrix.get(2, 0));
+  }
 
 }

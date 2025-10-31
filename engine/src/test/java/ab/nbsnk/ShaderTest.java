@@ -55,7 +55,7 @@ class ShaderTest {
     Obj obj = Obj.load(getClass()
 //        .getResourceAsStream("blender_cube.obj").readAllBytes());
 //        .getResourceAsStream("teapot.obj").readAllBytes());
-        .getResourceAsStream("spot_triangulated.obj").readAllBytes()); // 66 fps with texture
+        .getResourceAsStream("spot_triangulated.obj").readAllBytes());
     texture = ImageIO.read(getClass().getResourceAsStream("spot_texture.png"));
 
 //    Obj.flatNormal(obj);
