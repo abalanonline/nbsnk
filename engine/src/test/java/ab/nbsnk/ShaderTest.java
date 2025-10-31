@@ -50,6 +50,7 @@ class ShaderTest {
     // 180 fps 12MiB pre-calculated normalized viewer angle
     // during the shader improvements, it went down
     // 115 fps multiple light color and specular color
+    // 2025-10-31 Pnt refactoring 105 fps -> 95 fps
     BufferedImage texture = null;
     Obj obj = Obj.load(getClass()
 //        .getResourceAsStream("blender_cube.obj").readAllBytes());
@@ -121,7 +122,7 @@ class ShaderTest {
     Obj smooth = obj;
     int width = screen.image.getWidth();
     int height = screen.image.getHeight();
-    Shader shader = new Shader(width, height);
+    Shader shader = new Shader();
     shader.ambientColor = new Col(0xFF222222);
     shader.diffuseColor = new Col(0xFFDDDDDD);
     shader.specularColor = new Col(-1);
@@ -147,7 +148,7 @@ class ShaderTest {
         case '=': shader.enableTexture = !shader.enableTexture; break;
       }
       mode.set(0);
-      shader.cls();
+      shader.cls(width, height);
       shader.textureRaster = textureRaster;
       shader.textureWidth = textureWidth;
       shader.textureHeight = textureHeight;
@@ -196,19 +197,22 @@ class ShaderTest {
 
   @Test
   void viewerCenter() {
-    Shader shader = new Shader(2, 2);
-    double vxy = Math.abs(shader.viewer[0]);
-    double vz = shader.viewer[2];
-    assertEquals(vxy, Math.abs(shader.viewer[1]));
-    assertEquals(vxy, Math.abs(shader.viewer[3]));
-    assertEquals(vxy, Math.abs(shader.viewer[4]));
-    assertEquals(vz, shader.viewer[5]);
-    assertEquals(vxy, Math.abs(shader.viewer[6]));
-    assertEquals(vxy, Math.abs(shader.viewer[7]));
-    assertEquals(vz, shader.viewer[8]);
-    assertEquals(vxy, Math.abs(shader.viewer[9]));
-    assertEquals(vxy, Math.abs(shader.viewer[10]));
-    assertEquals(vz, shader.viewer[11]);
+    Pnt v00 = Shader.viewerVector(0, 0, 2, 2, 5);
+    Pnt v01 = Shader.viewerVector(0, 1, 2, 2, 5);
+    Pnt v10 = Shader.viewerVector(1, 0, 2, 2, 5);
+    Pnt v11 = Shader.viewerVector(1, 1, 2, 2, 5);
+    double vxy = Math.abs(v00.x);
+    double vz = v00.z;
+    assertEquals(vxy, Math.abs(v00.y));
+    assertEquals(vxy, Math.abs(v01.x));
+    assertEquals(vxy, Math.abs(v01.y));
+    assertEquals(vz, v01.z);
+    assertEquals(vxy, Math.abs(v10.x));
+    assertEquals(vxy, Math.abs(v10.y));
+    assertEquals(vz, v10.z);
+    assertEquals(vxy, Math.abs(v11.x));
+    assertEquals(vxy, Math.abs(v11.y));
+    assertEquals(vz, v11.z);
   }
 
 }

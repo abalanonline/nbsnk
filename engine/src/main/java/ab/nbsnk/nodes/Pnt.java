@@ -43,4 +43,25 @@ public class Pnt {
     return this;
   }
 
+  public Pnt normalize() {
+    double length = Math.sqrt(x * x + y * y + z * z);
+    x /= length;
+    y /= length;
+    z /= length;
+    return this;
+  }
+
+  public double dot(Pnt pnt) {
+    return this.x * pnt.x + this.y * pnt.y + this.z * pnt.z;
+  }
+
+  public static Pnt barycentric(Pnt a, Pnt b, Pnt c, double[] v) {
+    return new Pnt(
+      a.x * v[0] + b.x * v[1] + c.x * v[2],
+      a.y * v[0] + b.y * v[1] + c.y * v[2],
+      a.z * v[0] + b.z * v[1] + c.z * v[2]);
+  }
+
+  // TODO: 2025-10-31 getMatrix
+
 }

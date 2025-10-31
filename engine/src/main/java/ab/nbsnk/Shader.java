@@ -42,13 +42,13 @@ public class Shader {
   public static class Light { Col color; Pnt xyz; }
   public List<Light> lights;
   public Col[] lightColor;
-  public double[] lightPoint;
+  public Pnt[] lightPoint;
 
   public int[] imageRaster;
-  public final int imageWidth;
-  public final int imageHeight; // FIXME: 2025-09-29 remove finals everywhere
-  public final double[] zbuffer;
-  public final double[] viewer;
+  public int imageWidth;
+  public int imageHeight;
+  public double focalLength; // in pixels
+  public double[] zbuffer;
   public int[] textureRaster;
   public int textureWidth;
   public int textureHeight;
@@ -67,10 +67,10 @@ public class Shader {
   public double specularPower = 32; // shininess
 
   public int[] face; // current obj
-  public double[] vertex;
-  public double[] vertexTrue; // because vertex is a projection
-  public double[] normal;
-  public double[] tangentBitangent;
+  public Pnt[] vertex;
+  public Pnt[] vertexTrue; // because vertex is a projection
+  public Pnt[] normal;
+  public Pnt[] tangentBitangent;
   public double[] texture;
   public int iface;
   public int fv0;
@@ -82,47 +82,30 @@ public class Shader {
   public int fv2;
   public int fn2;
   public int ft2;
-  public double v0x;
-  public double v0y;
-  public double v0z;
-  public double v1x;
-  public double v1y;
-  public double v1z;
-  public double v2x;
-  public double v2y;
-  public double v2z;
+  public Pnt v0;
+  public Pnt v1;
+  public Pnt v2;
   public double ttx;
   public double tty;
-  public final Col[] gouraudIllumination = new Col[6];
-  public final double[] barycentricCoordinates = new double[4];
+  public Col[] gouraudIllumination = new Col[6];
+  public double[] barycentricCoordinates = new double[4];
+  public int imageRasterX;
+  public int imageRasterY;
   public int imageRasterXY;
 
   Runnable visibleFaceMethod;
   IntSupplier visiblePixelMethod;
 
-  public Shader(int imageWidth, int imageHeight) {
-    this.imageRaster = new int[imageWidth * imageHeight];
-    this.imageWidth = imageWidth;
-    this.imageHeight = imageHeight;
-    this.zbuffer = new double[imageWidth * imageHeight];
-    this.viewer = new double[imageWidth * imageHeight * 3];
-    double[] v = new double[3];
-    final double viewerZ = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
-    double imageHeight2 = imageHeight / 2.0 - 0.5;
-    double imageWidth2 = imageWidth / 2.0 - 0.5;
-    for (int y = 0, j = 0; y < imageHeight; y++) {
-      for (int x = 0; x < imageWidth; x++) {
-        v[0] = imageWidth2 - x;
-        v[1] = y - imageHeight2;
-        v[2] = viewerZ;
-        normalize(v);
-        for (int i = 0; i < 3; i++) viewer[j++] = v[i];
-      }
-    }
+  public static Pnt viewerVector(double x, double y, int imageWidth, int imageHeight, double focalLength) {
+    return new Pnt(
+        imageWidth / 2.0 - 0.5 - x,
+        imageHeight / 2.0 - 0.5 - y,
+        focalLength
+    ).normalize();
   }
 
   /**
-   * Vertex coordinates are in screen units (left handed), no further transformation required.
+   * Vertex coordinates are in screen units (y up), no further transformation required.
    * Z from 0 (very) far to 1 near.
    */
   public void rasterization() {
@@ -143,9 +126,12 @@ public class Shader {
   }
 
   public int phongShading() {
-    final double[] barycentricNormal = new double[3];
-    barycentricValue(normal, fn0, normal, fn1, normal, fn2, barycentricCoordinates, barycentricNormal);
-    //normalize(barycentricNormal);
+    Pnt barycentricNormal = Pnt.barycentric(
+        normal[fn0],
+        normal[fn1],
+        normal[fn2],
+        barycentricCoordinates
+    ).normalize(); // yes, it must be normalized
     if (bumpHeight > 0) {
       int btx = Math.min(Math.max(0, (int) (ttx * bumpWidth)), bumpWidth - 1); // bump texture x
       int bty = Math.min(Math.max(0, (int) (tty * bumpHeight)), bumpHeight - 1);
@@ -153,37 +139,27 @@ public class Shader {
       double vt = bumpCol.r - 0.5;
       double vb = bumpCol.g - 0.5;
       double vn = 2 * (bumpCol.b - 0.5); // TODO: 2025-10-25 confirm that 2* is not a bug of javafx
-      int i = iface * 6;
-      double tx = tangentBitangent[i++];
-      double ty = tangentBitangent[i++];
-      double tz = tangentBitangent[i++];
-      double bx = tangentBitangent[i++];
-      double by = tangentBitangent[i++];
-      double bz = tangentBitangent[i++];
-      double nx = barycentricNormal[0];
-      double ny = barycentricNormal[1];
-      double nz = barycentricNormal[2];
-      barycentricNormal[0] = vt * tx + vb * bx + vn * nx;
-      barycentricNormal[1] = vt * ty + vb * by + vn * ny;
-      barycentricNormal[2] = vt * tz + vb * bz + vn * nz;
-      normalize(barycentricNormal);
+      int i = iface * 2;
+      Pnt t = tangentBitangent[i++];
+      Pnt b = tangentBitangent[i++];
+      barycentricNormal = new Pnt().add(t, vt).add(b, vb).add(barycentricNormal, vn).normalize();
     }
-    final double[] barycentricPosition = new double[3];
-    barycentricValue(vertexTrue, fv0, vertexTrue, fv1, vertexTrue, fv2, barycentricCoordinates, barycentricPosition);
-    double x = barycentricPosition[0];
-    double y = barycentricPosition[1];
-    double z = barycentricPosition[2];
-    Col[] diffuseSpecular = illuminationRgb(x, y, z, barycentricNormal, 0, viewer, imageRasterXY * 3);
+    Pnt barycentricPosition = Pnt.barycentric(
+        vertexTrue[fv0],
+        vertexTrue[fv1],
+        vertexTrue[fv2],
+        barycentricCoordinates);
+    Pnt viewer = viewerVector(imageRasterX, imageRasterY, imageWidth, imageHeight, focalLength);
+    Col[] diffuseSpecular = illuminationRgb(barycentricPosition, barycentricNormal, viewer);
     Col color = getTextureColor().mul(diffuseSpecular[0]).add(diffuseSpecular[1], 1);
     if (reflectionAlpha > 0) {
-      double dotVN = dotProduct(barycentricNormal, 0, viewer, imageRasterXY * 3);
-      double[] R = {
-          2 * dotVN * barycentricNormal[0] - viewer[imageRasterXY * 3],
-          2 * dotVN * barycentricNormal[1] - viewer[imageRasterXY * 3 + 1],
-          2 * dotVN * barycentricNormal[2] - viewer[imageRasterXY * 3 + 2]
-      };
-      normalize(R);
-      Matrix r1 = reflectionMatrix.times(new Matrix(new double[]{R[0], R[1], R[2], 0}, 4));
+      double dotVN = viewer.dot(barycentricNormal);
+      Pnt R = new Pnt(
+          2 * dotVN * barycentricNormal.x - viewer.x,
+          2 * dotVN * barycentricNormal.y - viewer.y,
+          2 * dotVN * barycentricNormal.z - viewer.z
+      ).normalize();
+      Matrix r1 = reflectionMatrix.times(new Matrix(new double[]{R.x, R.y, R.z, 0}, 4));
       int reflectionY = Math.min(Math.max(0, (int) Math.round((0.5 - Math.asin(r1.get(1, 0)) / Math.PI) * reflectionHeight)), reflectionHeight - 1);
       int reflectionX = (int) Math.round((1 - Math.atan2(r1.get(0, 0), r1.get(2, 0)) / Math.PI) / 2 * reflectionWidth);
       reflectionX = (reflectionX % reflectionWidth + reflectionWidth) % reflectionWidth;
@@ -193,23 +169,21 @@ public class Shader {
     return color.rgb();
   }
 
-  public Col[] illuminationRgb(double x, double y, double z, double[] normal, int in, double[] viewer, int iv) {
+  public Col[] illuminationRgb(Pnt xyz, Pnt normal, Pnt viewer) {
     Col diffuseRgb = new Col();
     Col specularRgb = new Col();
-    for (int i = 0; i < lightPoint.length; i += 3) {
-      double[] light = {lightPoint[i] - x, lightPoint[i + 1] - y, lightPoint[i + 2] - z};
-      normalize(light);
-      double dotLN = dotProduct(normal, in, light, 0);
-      double[] R = {
-          2 * dotLN * normal[in] - light[0],
-          2 * dotLN * normal[in + 1] - light[1],
-          2 * dotLN * normal[in + 2] - light[2]
-      };
-      normalize(R);
-      double dotRV = dotProduct(R, 0, viewer, iv);
+    for (int i = 0; i < lightPoint.length; i++) {
+      Pnt light = lightPoint[i].clone().add(xyz, -1).normalize();
+      double dotLN = light.dot(normal);
+      Pnt R = new Pnt(
+          2 * dotLN * normal.x - light.x,
+          2 * dotLN * normal.y - light.y,
+          2 * dotLN * normal.z - light.z
+      ).normalize();
+      double dotRV = R.dot(viewer);
       //double illumination = ambient + diffuse * dotLN + specular * Math.pow(dotRV, specularPower);
-      diffuseRgb.add(lightColor[i / 3], Math.max(0, dotLN)); // diffuse
-      specularRgb.add(lightColor[i / 3], Math.pow(Math.max(0, dotRV), specularPower)); // specular
+      diffuseRgb.add(lightColor[i], Math.max(0, dotLN)); // diffuse
+      specularRgb.add(lightColor[i], Math.pow(Math.max(0, dotRV), specularPower)); // specular
     }
     return new Col[]{diffuseRgb.add(ambientColor, 1).mul(diffuseColor), specularRgb.mul(specularColor)};
   }
@@ -231,15 +205,15 @@ public class Shader {
 
   public int pixelZbuffer() {
     if (textureHeight > 0) return getTextureColor().rgb();
-    double z = barycentricValue(v0z, v1z, v2z, barycentricCoordinates);
+    double z = barycentricValue(v0.z, v1.z, v2.z, barycentricCoordinates);
     return (int) (z * 0xFF) * 0x010101;
   }
 
   public void drawVertex() {
-    if (v0z < 0 || v0z > 1 || v1z < 0 || v1z > 1 || v2z < 0 || v2z > 1) throw new IllegalArgumentException();
-    plot((int) Math.round(v0x), (int) Math.round(v0y), (int) (v0z * 255) * 0x010101);
-    plot((int) Math.round(v1x), (int) Math.round(v1y), (int) (v1z * 255) * 0x010101);
-    plot((int) Math.round(v2x), (int) Math.round(v2y), (int) (v2z * 255) * 0x010101);
+    if (v0.z < 0 || v0.z > 1 || v1.z < 0 || v1.z > 1 || v2.z < 0 || v2.z > 1) throw new IllegalArgumentException();
+    plot((int) Math.round(v0.x), (int) Math.round(v0.y), (int) (v0.z * 255) * 0x010101);
+    plot((int) Math.round(v1.x), (int) Math.round(v1.y), (int) (v1.z * 255) * 0x010101);
+    plot((int) Math.round(v2.x), (int) Math.round(v2.y), (int) (v2.z * 255) * 0x010101);
   }
 
   public void plot(int x, int y, int rgb) {
@@ -278,38 +252,30 @@ public class Shader {
   public void iterateVisibleFace() {
     for (int i = 0; i < face.length;) {
       iface = i / 9;
-      fv0 = face[i++] * 3;
-      fn0 = face[i++] * 3;
+      fv0 = face[i++];
+      fn0 = face[i++];
       ft0 = face[i++] * 2;
-      fv1 = face[i++] * 3;
-      fn1 = face[i++] * 3;
+      fv1 = face[i++];
+      fn1 = face[i++];
       ft1 = face[i++] * 2;
-      fv2 = face[i++] * 3;
-      fn2 = face[i++] * 3;
+      fv2 = face[i++];
+      fn2 = face[i++];
       ft2 = face[i++] * 2;
-      v0x = vertex[fv0];
-      v0y = vertex[fv0 + 1];
-      v0z = vertex[fv0 + 2];
-      v1x = vertex[fv1];
-      v1y = vertex[fv1 + 1];
-      v1z = vertex[fv1 + 2];
-      v2x = vertex[fv2];
-      v2y = vertex[fv2 + 1];
-      v2z = vertex[fv2 + 2];
-      double ax = v1x - v0x;
-      double ay = v1y - v0y;
-      double bx = v2x - v0x;
-      double by = v2y - v0y;
-      double n = ax * by - ay * bx; // normal of the triangle
-      if (n > 0) continue; // left
+      v0 = vertex[fv0];
+      v1 = vertex[fv1];
+      v2 = vertex[fv2];
+      Pnt va = v1.clone().add(v0, -1);
+      Pnt vb = v2.clone().add(v0, -1);
+      double n = va.x * vb.y - va.y * vb.x; // normal of the triangle
+      if (n < 0) continue;
       visibleFaceMethod.run();
     }
   }
 
   public void drawEdge() {
-    drawLine(v0x, v0y, v1x, v1y, (int) ((v0z + v1z) * 127) * 0x010101);
-    drawLine(v1x, v1y, v2x, v2y, (int) ((v1z + v2z) * 127) * 0x010101);
-    drawLine(v2x, v2y, v0x, v0y, (int) ((v2z + v0z) * 127) * 0x010101);
+    drawLine(v0.x, v0.y, v1.x, v1.y, (int) ((v0.z + v1.z) * 127) * 0x010101);
+    drawLine(v1.x, v1.y, v2.x, v2.y, (int) ((v1.z + v2.z) * 127) * 0x010101);
+    drawLine(v2.x, v2.y, v0.x, v0.y, (int) ((v2.z + v0.z) * 127) * 0x010101);
   }
 
   /**
@@ -333,25 +299,6 @@ public class Shader {
     for (int i = 0; i < d.length; i++) d[i] = a[ia++] * r[0] + b[ib++] * r[1] + c[ic++] * r[2];
   }
 
-  public static double length(double[] vector, int i, int size) {
-    double length = 0;
-    for (int j = 0; j < size; j++) {
-      double v = vector[i++];
-      length += v * v;
-    }
-    return Math.sqrt(length);
-  }
-
-  public static void normalize(double[] vector) {
-    double length = length(vector, 0, vector.length);
-    if (length == 0) return;
-    for (int i = 0; i < vector.length; i++) vector[i] /= length;
-  }
-
-  public static double dotProduct(double[] a, int ia, double[] b, int ib) {
-    return a[ia] * b[ib] + a[ia + 1] * b[ib + 1] + a[ia + 2] * b[ib + 2];
-  }
-
   public Col getTextureColor() {
     if (textureHeight == 0) return new Col(1, 1, 1, 1);
     int tx = Math.min(Math.max(0, (int) (ttx * textureWidth)), textureWidth - 1);
@@ -361,53 +308,47 @@ public class Shader {
 
   public void createLambertIllumination() {
     //gouraudIllumination[0] = phongReflection(light, 0, normal, fn0, new double[3], 0);
-    double x = (vertexTrue[fv0] + vertexTrue[fv1] + vertexTrue[fv2]) / 3;
-    double y = (vertexTrue[fv0 + 1] + vertexTrue[fv1 + 1] + vertexTrue[fv2 + 1]) / 3;
-    double z = (vertexTrue[fv0 + 2] + vertexTrue[fv1 + 2] + vertexTrue[fv2 + 2]) / 3;
-    int xs = (int) Math.round((v0x + v1x + v2x) / 3);
-    int ys = (int) Math.round((v0y + v1y + v2y) / 3);
-    // FIXME: 2025-10-24 using viewer array will crash on edges
-    Col[] illuminationRgb = illuminationRgb(x, y, z, normal, fn0, viewer, (ys * imageWidth + xs) * 3);
+    Pnt vertex = new Pnt()
+        .add(vertexTrue[fv0], 1.0 / 3)
+        .add(vertexTrue[fv1], 1.0 / 3)
+        .add(vertexTrue[fv2], 1.0 / 3);
+    Pnt vs = new Pnt().add(v0, 1.0 / 3).add(v1, 1.0 / 3).add(v2, 1.0 / 3);
+    Pnt viewer = viewerVector(vs.x, vs.y, imageWidth, imageHeight, focalLength);
+    Col[] illuminationRgb = illuminationRgb(vertex, normal[fn0], viewer);
     gouraudIllumination[0] = illuminationRgb[0];
     gouraudIllumination[1] = illuminationRgb[1];
   }
 
   public void createGouraudIllumination() {
-    final double viewerZ = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
     int[] fni = {fn0, fn1, fn2};
     int[] fvi = {fv0, fv1, fv2};
-    double[] xy = {v0x, v0y, v1x, v1y, v2x, v2y};
-    double[] viewer = new double[3];
+    Pnt[] xy = {v0, v1, v2};
     for (int i = 0; i < 3; i++) {
-      viewer[0] = imageWidth / 2.0 - xy[i * 2];
-      viewer[1] = xy[i * 2 + 1] - imageHeight / 2.0;
-      viewer[2] = viewerZ;
-      normalize(viewer);
+      Pnt viewer = viewerVector(xy[i].x, xy[i].y, imageWidth, imageHeight, focalLength);
       //double v = phongReflection(light, 0, normal, fni[i], viewer, 0);
       int fv = fvi[i];
-      Col[] illuminationRgb = illuminationRgb(
-          vertexTrue[fv], vertexTrue[fv + 1], vertexTrue[fv + 2], normal, fni[i], viewer, 0);
+      Col[] illuminationRgb = illuminationRgb(vertexTrue[fv], normal[fni[i]], viewer);
       gouraudIllumination[2 * i] = illuminationRgb[0];
       gouraudIllumination[2 * i + 1] = illuminationRgb[1];
     }
   }
 
   public void drawFace() {
-    if (v0z < 0 && v1z < 0 && v2z < 0) return;
+    if (v0.z < 0 && v1.z < 0 && v2.z < 0) return;
     double nearClip = 1 - this.nearClip / this.farClip;
-    if (v0z > nearClip || v1z > nearClip || v2z > nearClip) return;
+    if (v0.z > nearClip || v1.z > nearClip || v2.z > nearClip) return;
     barycentricCoordinates[3] = 0; // clear cache
-    int minX = Math.max((int) Math.floor(Math.min(v0x, Math.min(v1x, v2x))), 0);
-    int maxX = Math.min((int) Math.ceil(Math.max(v0x, Math.max(v1x, v2x))), imageWidth - 1);
-    int minY = Math.max((int) Math.floor(Math.min(v0y, Math.min(v1y, v2y))), 0);
-    int maxY = Math.min((int) Math.ceil(Math.max(v0y, Math.max(v1y, v2y))), imageHeight - 1);
+    int minX = Math.max((int) Math.floor(Math.min(v0.x, Math.min(v1.x, v2.x))), 0);
+    int maxX = Math.min((int) Math.ceil(Math.max(v0.x, Math.max(v1.x, v2.x))), imageWidth - 1);
+    int minY = Math.max((int) Math.floor(Math.min(v0.y, Math.min(v1.y, v2.y))), 0);
+    int maxY = Math.min((int) Math.ceil(Math.max(v0.y, Math.max(v1.y, v2.y))), imageHeight - 1);
     boolean createIllumination = true;
 
-    for (int y = minY; y <= maxY; y++) {
-      for (int x = minX; x <= maxX; x++) {
-        imageRasterXY = y * imageWidth + x;
-        if (!barycentric(x, y, v0x, v0y, v1x, v1y, v2x, v2y, barycentricCoordinates)) continue;
-        double z = barycentricValue(v0z, v1z, v2z, barycentricCoordinates);
+    for (imageRasterY = minY; imageRasterY <= maxY; imageRasterY++) {
+      for (imageRasterX = minX; imageRasterX <= maxX; imageRasterX++) {
+        imageRasterXY = (imageHeight - 1 - imageRasterY) * imageWidth + imageRasterX;
+        if (!barycentric(imageRasterX, imageRasterY, v0.x, v0.y, v1.x, v1.y, v2.x, v2.y, barycentricCoordinates)) continue;
+        double z = barycentricValue(v0.z, v1.z, v2.z, barycentricCoordinates);
         if (zbuffer[imageRasterXY] > z) continue;
         zbuffer[imageRasterXY] = z;
         if (createIllumination) {
@@ -416,9 +357,9 @@ public class Shader {
           createIllumination = false;
         }
         // barycentric perspective correction, texture and normals
-        barycentricCoordinates[0] *= (1 - z) / (1 - v0z);
-        barycentricCoordinates[1] *= (1 - z) / (1 - v1z);
-        barycentricCoordinates[2] *= (1 - z) / (1 - v2z);
+        barycentricCoordinates[0] *= (1 - z) / (1 - v0.z);
+        barycentricCoordinates[1] *= (1 - z) / (1 - v1.z);
+        barycentricCoordinates[2] *= (1 - z) / (1 - v2.z);
         ttx = barycentricValue(texture[ft0], texture[ft1], texture[ft2], barycentricCoordinates);
         tty = barycentricValue(texture[ft0 + 1], texture[ft1 + 1], texture[ft2 + 1], barycentricCoordinates);
         imageRaster[imageRasterXY] = visiblePixelMethod.getAsInt();
@@ -445,21 +386,17 @@ public class Shader {
   }
 
   // cls(), addLight(), add()
-  public void cls() {
+  public void cls(int width, int height) {
+    imageWidth = width;
+    imageHeight = height;
+    focalLength = FOCAL_LENGTH / FILM_HEIGHT * imageHeight;
+    if (imageRaster == null || imageRaster.length != width * height) imageRaster = new int[width * height];
+    if (zbuffer == null || zbuffer.length != width * height) zbuffer = new double[width * height];
     Arrays.fill(imageRaster, 0);
     Arrays.fill(zbuffer, 0);
     lights = new ArrayList<>();
     lightColor = null;
     lightPoint = null;
-  }
-
-  @Deprecated
-  public void addLight(int color, Matrix tm) {
-    Matrix xyz = tm.times(new Matrix(new double[]{0, 0, 0, 1}, 4));
-    Light light = new Light();
-    light.xyz = new Pnt(xyz.get(0, 0), xyz.get(1, 0), xyz.get(2, 0));
-    light.color = new Col(color);
-    lights.add(light);
   }
 
   public void addLight(Pnt xyz, Col color) {
@@ -473,72 +410,56 @@ public class Shader {
     if (lights != null) {
       int size = lights.size();
       lightColor = new Col[size];
-      lightPoint = new double[size * 3];
+      lightPoint = new Pnt[size];
       for (int i = 0; i < size; i++) {
         Light light = lights.get(i);
         lightColor[i] = light.color;
-        lightPoint[i * 3] = light.xyz.x;
-        lightPoint[i * 3 + 1] = light.xyz.y;
-        lightPoint[i * 3 + 2] = light.xyz.z;
+        lightPoint[i] = light.xyz;
       }
       lights = null;
     }
     // TODO: 2025-09-30 review this method, it's a mess
     this.face = obj.face;
     this.texture = obj.texture == null ? new double[2] : obj.texture;
-    this.vertex = Arrays.copyOf(obj.vertex, obj.vertex.length);
-    this.vertexTrue = new double[obj.vertex.length];
-    this.normal = Arrays.copyOf(obj.normal, obj.normal.length);
+    this.vertex = new Pnt[obj.vertex.length / 3];
+    this.vertexTrue = new Pnt[obj.vertex.length / 3];
+    this.normal = new Pnt[obj.normal.length / 3];
 //    rotate(vertex, transformation[3], 2);
 //    rotate(normal, transformation[3], 2);
-    for (int i = 0; i < normal.length / 3; i++) {
-      Matrix xyz = new Matrix(new double[]{normal[i * 3], normal[i * 3 + 1], normal[i * 3 + 2], 0}, 4);
+    for (int i = 0; i < normal.length; i++) {
+      Matrix xyz = new Matrix(new double[]{obj.normal[i * 3], obj.normal[i * 3 + 1], obj.normal[i * 3 + 2], 0}, 4);
       Matrix xyz1 = tm.times(xyz);
-      normal[i * 3] = xyz1.get(0, 0);
-      normal[i * 3 + 1] = xyz1.get(1, 0);
-      normal[i * 3 + 2] = xyz1.get(2, 0);
+      normal[i] = new Pnt(xyz1.get(0, 0), xyz1.get(1, 0), xyz1.get(2, 0));
     }
-    tangentBitangent = tangentBitangent == null ? new double[0] : Arrays.copyOf(tangentBitangent, tangentBitangent.length);
-    for (int i = 0; i < tangentBitangent.length; i += 3) {
-      Matrix xyz = new Matrix(new double[]{tangentBitangent[i], tangentBitangent[i + 1], tangentBitangent[i + 2], 0}, 4);
+    tangentBitangent = tangentBitangent == null ? new Pnt[0] : Arrays.copyOf(tangentBitangent, tangentBitangent.length);
+    for (int i = 0; i < tangentBitangent.length; i++) {
+      Pnt tb = tangentBitangent[i];
+      Matrix xyz = new Matrix(new double[]{tb.x, tb.y, tb.z, 0}, 4);
       Matrix xyz1 = tm.times(xyz);
-      tangentBitangent[i] = xyz1.get(0, 0);
-      tangentBitangent[i + 1] = xyz1.get(1, 0);
-      tangentBitangent[i + 2] = xyz1.get(2, 0);
+      tangentBitangent[i] = new Pnt(xyz1.get(0, 0), xyz1.get(1, 0), xyz1.get(2, 0));
     }
-    int w2 = imageWidth / 2;
-    int h2 = imageHeight / 2;
-    for (int i = 0; i < vertex.length / 3; i++) {
+    double w2 = imageWidth / 2.0 - 0.5;
+    double h2 = imageHeight / 2.0 - 0.5;
+    for (int i = 0; i < vertex.length; i++) {
 //      double x = vertex[i * 3] + transformation[0];
 //      double y = vertex[i * 3 + 1] + transformation[1];
 //      double z = vertex[i * 3 + 2] + transformation[2];
-      Matrix xyz = new Matrix(new double[]{vertex[i * 3], vertex[i * 3 + 1], vertex[i * 3 + 2], 1}, 4);
+      Matrix xyz = new Matrix(new double[]{obj.vertex[i * 3], obj.vertex[i * 3 + 1], obj.vertex[i * 3 + 2], 1}, 4);
       Matrix xyz1 = tm.times(xyz);
       double x = xyz1.get(0, 0);
       double y = xyz1.get(1, 0);
       double z = xyz1.get(2, 0);
-      vertexTrue[i * 3] = x;
-      vertexTrue[i * 3 + 1] = y;
-      vertexTrue[i * 3 + 2] = z;
-      double d = (FOCAL_LENGTH / (FILM_HEIGHT / 2)) * h2 / -z;
-      //d/=2;
-      vertex[i * 3] = w2 + x * d;
-      // FIXME: 2025-09-29 get rid of left completely
-      vertex[i * 3 + 1] = h2 - y * d; // left
-      vertex[i * 3 + 2] = (farClip + z) / farClip;
-//      double d = h2 * 5 / (5 - z);
-//      vertex[i * 3] = w2 + x * d;
-//      vertex[i * 3 + 1] = h2 - y * d; // left
-//      vertex[i * 3 + 2] = z / 2 + 0.5;
+      vertexTrue[i] = new Pnt(x, y, z);
+      double d = focalLength / -z;
+      vertex[i] = new Pnt(w2 + x * d, h2 + y * d, (farClip + z) / farClip);
     };
     rasterization();
   }
 
-  public static double[] computeTangentBitangent(
+  public static Pnt[] computeTangentBitangent(
       double x1,double y1,double z1, double u1,double v1,
       double x2,double y2,double z2, double u2,double v2,
       double x3,double y3,double z3, double u3,double v3) {
-    // FIXME: 2025-10-25 vibe code
     // edge vectors
     double ex1 = x2 - x1, ey1 = y2 - y1, ez1 = z2 - z1;
     double ex2 = x3 - x1, ey2 = y3 - y1, ez2 = z3 - z1;
@@ -559,15 +480,15 @@ public class Shader {
     double by = f * (-du2 * ey1 + du1 * ey2);
     double bz = f * (-du2 * ez1 + du1 * ez2);
 
-    return new double[]{tx, ty, tz, bx, by, bz};
+    return new Pnt[]{new Pnt(tx, ty, tz), new Pnt(bx, by, bz)};
   }
 
-  public static double[] computeTangentBitangent(Obj obj) {
+  public static Pnt[] computeTangentBitangent(Obj obj) {
     int[] face = obj.face;
     double[] vertex = obj.vertex;
     double[] texture = obj.texture;
-    double[] tangentBitangent = new double[6 * face.length / 9];
-    for (int i = 0, tbi = 0; i < face.length; tbi += 6) {
+    Pnt[] tangentBitangent = new Pnt[2 * face.length / 9];
+    for (int i = 0, tbi = 0; i < face.length; tbi += 2) {
       int fv0 = face[i++] * 3;
       int fn0 = face[i++] * 3;
       int ft0 = face[i++] * 2;
@@ -592,9 +513,9 @@ public class Shader {
       double t1v = texture[ft1 + 1];
       double t2u = texture[ft2];
       double t2v = texture[ft2 + 1];
-      double[] tb = Shader
+      Pnt[] tb = Shader
           .computeTangentBitangent(v0x, v0y, v0z, t0u, t0v, v1x, v1y, v1z, t1u, t1v, v2x, v2y, v2z, t2u, t2v);
-      System.arraycopy(tb, 0, tangentBitangent, tbi, 6);
+      System.arraycopy(tb, 0, tangentBitangent, tbi, 2);
     }
     return tangentBitangent;
   }

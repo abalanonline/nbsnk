@@ -33,6 +33,7 @@ public class SketchBumpReflection {
     //obj1bump.getGraphics().drawImage(normalMapExampleWithSceneAndResult, -2048, 2048, 2048 * 3, -2048, null);
     //try { ImageIO.write(obj1bump, "png", new File("assets/test.png")); } catch (IOException ignore) {}
     Obj obj1 = new Shapes.Square();
+    //obj1.image = Obj.image(Paths.get("assets/maptest.png"));
     //obj1.texture = new double[]{1, 0.5, 0.5, 1, 0, 0.5, 0.5, 0,};
 
     // https://commons.wikimedia.org/wiki/File:NormalMaps.png
@@ -57,9 +58,9 @@ public class SketchBumpReflection {
         .withImage(photosphere)).selfIllumination(-1).connect(sceneViewer.sky);
 
     // shapes
-//    Engine3d.Node node = engine3d.shape(obj1).setBumpMap(obj1bump).setSpecular(-1, 100);
+//    engine3d.shape(obj1).setBumpMap(obj1bump).setSpecular(-1, 100).connect(sceneViewer.node);
     Obj obj = Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj")).interpolateNormal();
-    engine3d.shape(obj).setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sky).connect(sceneViewer.node);
+    engine3d.shape(obj).setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sceneViewer.sky).connect(sceneViewer.node);
     engine3d.light().setColor(0xFFBF7F).translation(-100, 100, 100);
     sceneViewer.run();
   }

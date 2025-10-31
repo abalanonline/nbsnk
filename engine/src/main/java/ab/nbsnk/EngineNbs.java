@@ -83,6 +83,7 @@ public class EngineNbs implements Engine3d {
 
   public EngineNbs() {
     this.camera = new NodeNbs();
+    this.shader = new Shader();
   }
 
   @Override
@@ -91,7 +92,6 @@ public class EngineNbs implements Engine3d {
     this.imageHeight = image.getHeight();
     this.imageRaster = new int[imageWidth * imageHeight];
     this.image = image;
-    this.shader = new Shader(imageWidth, imageHeight);
     applyBackground();
     return this;
   }
@@ -159,7 +159,7 @@ public class EngineNbs implements Engine3d {
 
   @Override
   public void update() {
-    shader.cls();
+    shader.cls(imageWidth, imageHeight);
     if (background == null) {
       Arrays.fill(imageRaster, -1);
     } else {
@@ -175,7 +175,6 @@ public class EngineNbs implements Engine3d {
           Pnt pnt = new Pnt(xyz.get(0, 0), xyz.get(1, 0), xyz.get(2, 0));
           int color = ((LightNbs) e.getKey()).color;
           shader.addLight(pnt, new Col(color));
-          //shader.addLight(((LightNbs) e.getKey()).color, e.getValue()); // deprecated
         });
     // if no lights, add the light from the camera, Javafx default
     if (shader.lights.isEmpty()) shader.addLight(new Pnt(), new Col(-1));
@@ -323,7 +322,7 @@ public class EngineNbs implements Engine3d {
     private Col specularColor = new Col();
     private double specularPower = 32;
     private boolean selfIllumination;
-    private double[] tangentBitangent;
+    private Pnt[] tangentBitangent;
     private int[] reflectionRaster;
     private int reflectionWidth;
     private int reflectionHeight;
