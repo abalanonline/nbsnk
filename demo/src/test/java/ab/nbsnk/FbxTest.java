@@ -20,9 +20,6 @@ package ab.nbsnk;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import javax.sound.midi.MidiSystem;
-import javax.sound.midi.Soundbank;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -31,8 +28,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class FbxTest {
 
@@ -76,7 +71,7 @@ class FbxTest {
         int encodingi = buffer.getInt();
         int byteSizei = buffer.getInt();
         Fbx.getString(buffer, byteSizei);
-        System.out.print(" d: int[" + sizei + "]"); return byteSizei + 13;
+        System.out.print(" i: int[" + sizei + "]"); return byteSizei + 13;
       default: throw new IllegalStateException();
     }
   }

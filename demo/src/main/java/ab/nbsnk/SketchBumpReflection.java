@@ -17,17 +17,11 @@
 
 package ab.nbsnk;
 
-import ab.jnc3.Screen;
 import ab.nbsnk.nodes.Shapes;
 
-import javax.imageio.ImageIO;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class SketchBumpReflection {
   public static void main(String[] args) {
@@ -55,67 +49,18 @@ public class SketchBumpReflection {
     Dimension screenSize = new Dimension(640, 360);
     BufferedImage background = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_ARGB);
     Sketch2.renderNoise(background);
-    FpsMeter fpsMeter = new FpsMeter();
-    Engine3d engine3d = new EngineDual()
-        .textSupplier(() -> String.format("fps: %.0f", fpsMeter.getFps())).background(background);
-    Queue<String> keyListener = new LinkedBlockingQueue<>();
-    boolean[] gamepadButton = new boolean[10];
-    double[] gamepadAxis = new double[9];
-    boolean systemExit = false;
+    Engine3d engine3d = new EngineDual().background(background);
+    SceneViewer sceneViewer = new SceneViewer(engine3d, screenSize);
     BufferedImage photosphere = Obj.image(Paths.get("assets/reflection_sphere.jpg"));
-    Engine3d.Group cameraRails = engine3d.group();
-    Engine3d.Group cameraRig = (Engine3d.Group) engine3d.group().translation(0, 0, 5).connect(cameraRails);
-    Engine3d.Node camera = engine3d.camera().connect(cameraRig);
     Engine3d.Node sky = engine3d.shape(Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj"))
         .interpolateNormal().scale(95).ry90().inverted()
-        .withImage(photosphere)).selfIllumination(-1).connect(cameraRig);
+        .withImage(photosphere)).selfIllumination(-1).connect(sceneViewer.sky);
 
     // shapes
 //    Engine3d.Node node = engine3d.shape(obj1).setBumpMap(obj1bump).setSpecular(-1, 100);
     Obj obj = Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj")).interpolateNormal();
-    Engine3d.Node node = engine3d.shape(obj)
-        .setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sky);
+    engine3d.shape(obj).setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sky).connect(sceneViewer.node);
     engine3d.light().setColor(0xFFBF7F).translation(-100, 100, 100);
-    //engine3d.camera().translation(5, 0, -5).rotation(-0.25, 0, 0);
-
-    Screen screen = new Screen();
-    screen.gameController = true;
-    screen.image = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_RGB);
-    screen.preferredSize = screenSize;
-    screen.keyListener = keyListener::add;
-    engine3d.open(screen.image);
-    while (!systemExit) {
-      while (!keyListener.isEmpty()) {
-        String key = keyListener.remove();
-        if ("Esc".equals(key)) systemExit = true;
-        if (key.startsWith("Mouse")) {
-          char bw = key.charAt(6);
-          if (bw <= '9') {
-            String[] xys = key.substring(5).split(",");
-            int axis = (gamepadButton[1] ? 2 : 0) + (gamepadButton[3] ? 4 : 0);
-            gamepadAxis[axis] -= Integer.parseInt(xys[0]);
-            gamepadAxis[axis + 1] += Integer.parseInt(xys[1]);
-          }
-          if (bw == 'W') gamepadAxis[8] += (key.charAt(5) == '+') ? 1 : -1;
-          if (bw == 'B') {
-            int button = key.charAt(7) - '0';
-            boolean buttonOn = key.charAt(5) == '+';
-            gamepadButton[button] = buttonOn;
-          }
-        }
-      }
-      node.rotation(gamepadAxis[0] / 1000.0, gamepadAxis[1] / 1000.0, gamepadAxis[8] / 12.0);
-      double cameraYaw = gamepadAxis[2] / 1000.0;
-      double cameraPitch = gamepadAxis[3] / 1000.0;
-      cameraRails.rotation(cameraYaw, cameraPitch, 0);
-      cameraRig.rotation(0, -cameraPitch, 0);
-      sky.rotation(-cameraYaw, 0, 0);
-      camera.rotation(0, cameraPitch, 0);
-      engine3d.update();
-      screen.update();
-      try { Thread.sleep(20); } catch (InterruptedException ignore) {}
-    }
-    screen.close();
-    engine3d.close();
+    sceneViewer.run();
   }
 }
