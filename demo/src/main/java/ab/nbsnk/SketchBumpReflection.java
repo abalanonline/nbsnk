@@ -53,12 +53,11 @@ public class SketchBumpReflection {
     Engine3d engine3d = new EngineDual().background(background);
     SceneViewer sceneViewer = new SceneViewer(engine3d, screenSize);
     BufferedImage photosphere = Obj.image(Paths.get("assets/reflection_sphere.jpg"));
-    Engine3d.Node sky = engine3d.shape(Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj"))
+    engine3d.shape(Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj"))
         .interpolateNormal().scale(95).ry90().inverted()
         .withImage(photosphere)).selfIllumination(-1).connect(sceneViewer.sky);
 
-    // shapes
-//    engine3d.shape(obj1).setBumpMap(obj1bump).setSpecular(-1, 100).connect(sceneViewer.node);
+//    engine3d.shape(obj1).setBumpMap(obj1bump).setReflectionMap(photosphere, 0.3, sceneViewer.sky).setSpecular(-1, 100).connect(sceneViewer.node);
     Obj obj = Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj")).interpolateNormal();
     engine3d.shape(obj).setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sceneViewer.sky).connect(sceneViewer.node);
     engine3d.light().setColor(0xFFBF7F).translation(-100, 100, 100);

@@ -294,11 +294,6 @@ public class Shader {
     return a * r[0] + b * r[1] + c * r[2];
   }
 
-  public static void barycentricValue(double[] a, int ia, double[] b, int ib, double[] c, int ic,
-      double[] r, double[] d) {
-    for (int i = 0; i < d.length; i++) d[i] = a[ia++] * r[0] + b[ib++] * r[1] + c[ic++] * r[2];
-  }
-
   public Col getTextureColor() {
     if (textureHeight == 0) return new Col(1, 1, 1, 1);
     int tx = Math.min(Math.max(0, (int) (ttx * textureWidth)), textureWidth - 1);
@@ -364,24 +359,6 @@ public class Shader {
         tty = barycentricValue(texture[ft0 + 1], texture[ft1 + 1], texture[ft2 + 1], barycentricCoordinates);
         imageRaster[imageRasterXY] = visiblePixelMethod.getAsInt();
       }
-    }
-  }
-
-  /**
-   * In place rotation, angle in turns 0-1, axis 0x,1y,2z
-   */
-  public static void rotate(double[] vertex, double angle, int axis) {
-    // TODO: do not optimize rotations until phong texture fully optimized
-    angle = 2 * Math.PI * angle;
-    double s = Math.sin(angle);
-    double c = Math.cos(angle);
-    int ax = (axis + 1) % 3;
-    int ay = (axis + 2) % 3;
-    for (int i = 0; i < vertex.length; i += 3) {
-      double x = vertex[i + ax];
-      double y = vertex[i + ay];
-      vertex[i + ax] = x * c - y * s;
-      vertex[i + ay] = x * s + y * c;
     }
   }
 

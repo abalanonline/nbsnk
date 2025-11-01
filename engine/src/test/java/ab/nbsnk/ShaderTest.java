@@ -177,16 +177,8 @@ class ShaderTest {
     for (int y = 0; y < 240; y++) {
       for (int x = 0; x < 320; x++) {
         if (!Shader.barycentric(x, y, 60, 1, 299, 120, 60, 239, r)) continue;
-        //double cr = Shader.barycentricValue(1, 1, 0, r); // r[0] + r[1];
-        //double cg = Shader.barycentricValue(1, 0.5, 0, r); // r[0] + r[1] / 2;
-        //double cb = Shader.barycentricValue(1, 0, 0, r); // r[0];
-        double[] rgb = new double[3];
-        Shader.barycentricValue(
-            new double[]{1, 1, 1}, 0, new double[]{1, 0.5, 0}, 0, new double[]{0, 0, 0}, 0, r, rgb);
-        int cd7 = (int) (rgb[0] * 0xFF);
-        int cd4 = (int) (rgb[1] * 0xFF);
-        int i2 = (int) (rgb[2] * 0xFF);
-        screen.image.setRGB(x, y, cd7 << 16 | cd4 << 8 | i2);
+        Col col = Col.barycentric(new Col(1, 1, 1, 1), new Col(1, 0.5, 0, 1), new Col(0, 0, 0, 1), r);
+        screen.image.setRGB(x, y, col.rgb());
       }
     }
     while (open) {

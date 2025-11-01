@@ -58,8 +58,14 @@ public class Col {
     return this;
   }
 
+  @Deprecated
   public int rgb() {
     return 0xFF000000 | Math.min(0xFF, (int) (r * 0xFF)) << 16 |
+        Math.min(0xFF, (int) (g * 0xFF)) << 8 | Math.min(0xFF, (int) (b * 0xFF));
+  }
+
+  public int argb() {
+    return Math.min(0xFF, (int) (a * 0xFF)) << 24 | Math.min(0xFF, (int) (r * 0xFF)) << 16 |
         Math.min(0xFF, (int) (g * 0xFF)) << 8 | Math.min(0xFF, (int) (b * 0xFF));
   }
 
