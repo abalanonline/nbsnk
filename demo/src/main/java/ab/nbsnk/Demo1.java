@@ -40,11 +40,14 @@ public class Demo1 {
     Geometry[] geometry = Geometry.load(Paths.get("assets/demo1"));
     for (Geometry g : geometry) {
       Obj obj = g.getObj();
-      Optional.ofNullable(g.getDiffuseMap(g)).ifPresent(image -> obj.image = image);
+      //Obj.normalizeNormal(obj);
+      Optional.ofNullable(g.getDiffuseMap()).ifPresent(image -> obj.image = image);
       Engine3d.Shape shape = engine3d.shape(obj);
       shape.setColor(g.getDiffuseColor());
-      shape.setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sceneViewer.sky)
-          .connect(sceneViewer.node);
+      if (g.specularColor != null) shape.setSpecular(g.specularColor.argb(), Optional.ofNullable(g.shininessExponent).orElse(32.0));
+      shape.setReflectionMap(photosphere, Optional.ofNullable(g.reflectionFactor).orElse(0.0), sceneViewer.sky);
+      Optional.ofNullable(g.getBumpMap()).ifPresent(shape::setBumpMap);
+      shape.connect(sceneViewer.node);
     }
     sceneViewer.run();
   }

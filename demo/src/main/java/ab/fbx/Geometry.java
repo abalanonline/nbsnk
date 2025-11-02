@@ -34,10 +34,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class Geometry {
-  public static final Set<String> PROPERTY_KEYS = Set.of(
-      "AmbientColor", "DiffuseColor", "DiffuseFactor", "TransparencyFactor", "SpecularColor", "ReflectionFactor",
-      "Emissive", "Ambient", "Diffuse", "Specular", "Shininess", "Opacity", "Reflectivity", "ShininessExponent",
-      "ReflectionColor", "TransparentColor");
+  public static final Set<String> PROPERTY_KEYS = Set.of("AmbientColor", "DiffuseColor", "DiffuseFactor",
+      "TransparencyFactor", "SpecularColor", "ReflectionFactor", "Emissive", "Ambient", "Diffuse", "Specular",
+      "Shininess", "Opacity", "Reflectivity", "ShininessExponent", "?ReflectionColor", "?TransparentColor",
+      "?ShadingModel", "?EmissiveFactor", "?SpecularFactor", "?AmbientFactor", "?BumpFactor");
   Fbx fbx;
   Node node;
   Node material;
@@ -45,6 +45,9 @@ public class Geometry {
 
   Col diffuseColor;
   Double opacity;
+  public Col specularColor;
+  public Double reflectionFactor;
+  public Double shininessExponent;
 
   public Geometry(Fbx fbx, Node node) {
     this.fbx = fbx;
@@ -53,12 +56,19 @@ public class Geometry {
     this.materialProperties = material.get("Properties70").nested;
     this.diffuseColor = getPropertyCol("DiffuseColor");
     this.opacity = getPropertyDouble("Opacity");
+    this.specularColor = getPropertyCol("SpecularColor");
+    this.reflectionFactor = getPropertyDouble("ReflectionFactor");
+    this.shininessExponent = getPropertyDouble("ShininessExponent");
+    // unidentified properties: AmbientColor, DiffuseFactor, TransparencyFactor, Emissive, Ambient, Reflectivity
+    // Diffuse (Vector) repeats DiffuseColor (A)
+    // Specular (Vector) repeats SpecularColor (A)
+    // Shininess (double) repeats ShininessExponent (A)
     Arrays.stream(materialProperties).filter(n -> !PROPERTY_KEYS.contains(n.property[0])).forEach(System.out::println);
   }
 
   public Col getPropertyCol(String key) {
     for (Node node : materialProperties) if (key.equals(node.property[0]))
-      return new Col((double) node.property[4], (double) node.property[5], (double) node.property[6], -1);
+      return new Col((double) node.property[4], (double) node.property[5], (double) node.property[6], 1);
     return null;
   }
 
@@ -84,14 +94,23 @@ public class Geometry {
   //P "ReflectionColor"    "Color"    ""       "A" 0.8 0.8 0.8
   //P "TransparentColor"   "Color"    ""       "A" 1.0 1.0 1.0
 
-  public BufferedImage getDiffuseMap(Geometry geometry) {
+  public BufferedImage getImageMap(String mapName) {
     Node diffuseColorNode = fbx.op.getOrDefault(material, Collections.emptyMap())
-        .getOrDefault("DiffuseColor", Collections.singletonList(null)).get(0);
+        .getOrDefault(mapName, Collections.singletonList(null)).get(0);
     String diffuseColor = diffuseColorNode == null ? null : diffuseColorNode.getString("RelativeFilename");
     if (diffuseColor == null) return null;
+    diffuseColor = diffuseColor.substring(Math.max(diffuseColor.lastIndexOf('/'), diffuseColor.lastIndexOf('\\')) + 1);
     Path path = fbx.path.resolve(diffuseColor);
-    if (!Files.isRegularFile(path)) return null;
+    if (!Files.isRegularFile(path)) throw new IllegalStateException(path.toString());
     return Obj.image(path);
+  }
+
+  public BufferedImage getDiffuseMap() {
+    return getImageMap("DiffuseColor");
+  }
+
+  public BufferedImage getBumpMap() {
+    return getImageMap("Bump");
   }
 
   public int getDiffuseColor() {
@@ -115,7 +134,8 @@ public class Geometry {
     int[] indexToDirect;
     switch (referenceInformationType) {
       case "Direct":
-        indexToDirect = null;
+        indexToDirect = new int[polygonVertexIndex.length];
+        for (int i = 0; i < indexToDirect.length; i++) indexToDirect[i] = i;
         break;
       case "IndexToDirect":
         indexToDirect = (int[]) layerElementNormal.get(key2 + "Index").property[0];
@@ -125,10 +145,14 @@ public class Geometry {
     int[] polygonNormalIndex = new int[polygonVertexIndex.length];
     switch (mappingInformationType) {
       case "ByPolygonVertex":
-        if (indexToDirect == null) {
-          for (int i = 0; i < polygonNormalIndex.length; i++) polygonNormalIndex[i] = i;
-        } else {
-          polygonNormalIndex = indexToDirect;
+        if (indexToDirect.length != polygonVertexIndex.length) throw new IllegalStateException();
+        polygonNormalIndex = indexToDirect;
+        break;
+      case "ByVertice":
+        for (int i = 0; i < polygonVertexIndex.length; i++) {
+          int vi = polygonVertexIndex[i];
+          if (vi < 0) vi = -1 - vi;
+          polygonNormalIndex[i] = indexToDirect[vi];
         }
         break;
       default: throw new IllegalStateException();

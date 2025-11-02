@@ -101,6 +101,7 @@ public class Container {
       case 'I': return buffer.getInt();
       case 'D': return buffer.getDouble();
       case 'L': return buffer.getLong();
+      case 'F': return buffer.getFloat();
       case 'C': return (char) buffer.get();
       case 'S': return getString(buffer, buffer.getInt());
       case 'R': return getEncoded(buffer, 0, 0, buffer.getInt());

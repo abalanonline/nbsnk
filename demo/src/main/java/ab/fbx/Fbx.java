@@ -31,7 +31,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class Fbx {
-  Node root;
+  public Node root;
   Path path;
   Map<Long, Node> idNode = new HashMap<>();
   Map<Node, Map<String, List<Node>>> oo = new LinkedHashMap<>();
@@ -39,7 +39,6 @@ public class Fbx {
   Map<Node, Map<String, List<Node>>> op = new LinkedHashMap<>();
 
   public Fbx(Node root, Path path) {
-    System.out.println(root.debug());
     this.root = root;
     this.path = path;
     idNode.put(0L, root);
