@@ -63,6 +63,17 @@ public class Shapes {
     }
   }
 
+  public static class Tetrahedron extends Obj {
+    public Tetrahedron() {
+      this.face = new int[]{0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0,
+          0, 0, 0, 3, 0, 0, 2, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0,};
+      this.vertex = new double[]{1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1,};
+      this.texture = new double[]{0, 0,};
+      image = Shapes.image();
+      flatNormal();
+    }
+  }
+
   // HD sphere v482 f960, Sphere v114 f224, Icosphere v42 f80, Icosahedron v12 f20
   public static class Sphere extends Obj {
     public Sphere() {

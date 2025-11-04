@@ -134,7 +134,7 @@ public class Sketch3 {
     //engine3d.shape(gridShape).selfIllumination().translation(0, 35, 50);
 
     Projectile apple = new Projectile(GRAVITY, 5, a -> engine3d.shape(new Shapes.Icosphere().scale(0.07 * a))
-        .selfIllumination(new Col(0xFFCA4E21).mul(a).rgb()));
+        .selfIllumination(new Col(0xFFCA4E21).mul(a).argb()));
     apple.rotatePitch = 4;
     apple.radius = 0.09;
     apple.light = engine3d.light().setColor(0xFFBF3720);

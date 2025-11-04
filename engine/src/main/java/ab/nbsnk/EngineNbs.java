@@ -157,6 +157,29 @@ public class EngineNbs implements Engine3d {
     }
   }
 
+  private void shaderAdd(ShapeNbs shape, Matrix matrix, Matrix cameraMatrix, Map<NodeNbs, Matrix> map) {
+    Shader.Illumination enableIllumination = shader.enableIllumination;
+    if (shape.selfIllumination) shader.enableIllumination = Shader.Illumination.NONE;
+    shader.ambientColor = this.ambientColor;
+    shader.diffuseColor = shape.diffuseColor;
+    shader.specularColor = shape.specularColor;
+    shader.specularPower = shape.specularPower;
+    shader.textureRaster = shape.textureRaster;
+    shader.textureWidth = shape.textureWidth;
+    shader.textureHeight = shape.textureHeight;
+    shader.bumpRaster = shape.bumpRaster;
+    shader.bumpWidth = shape.bumpWidth;
+    shader.bumpHeight = shape.bumpHeight;
+    shader.tangentBitangent = shape.tangentBitangent;
+    shader.reflectionRaster = shape.reflectionRaster;
+    shader.reflectionWidth = shape.reflectionWidth;
+    shader.reflectionHeight = shape.reflectionHeight;
+    shader.reflectionAlpha = shape.reflectionAlpha;
+    shader.reflectionMatrix = cameraMatrix.times(map.getOrDefault(shape.reflectionSkybox, IDENTITY)).inverse();
+    shader.add(shape.obj, cameraMatrix.times(matrix));
+    if (shape.selfIllumination) shader.enableIllumination = enableIllumination;
+  }
+
   @Override
   public void update() {
     shader.cls(imageWidth, imageHeight);
@@ -173,40 +196,15 @@ public class EngineNbs implements Engine3d {
         .forEach(e -> {
           Matrix xyz = cameraMatrix.times(e.getValue()).times(new Matrix(new double[]{0, 0, 0, 1}, 4));
           Pnt pnt = new Pnt(xyz.get(0, 0), xyz.get(1, 0), xyz.get(2, 0));
-          int color = ((LightNbs) e.getKey()).color;
-          shader.addLight(pnt, new Col(color));
+          Col color = ((LightNbs) e.getKey()).color;
+          shader.addLight(pnt, color);
         });
-    // if no lights, add the light from the camera, Javafx default
-    if (shader.lights.isEmpty()) shader.addLight(new Pnt(), new Col(-1));
-    for (Map.Entry<NodeNbs, Matrix> entry : map.entrySet()) {
-      NodeNbs node = entry.getKey();
-      if (node instanceof LightNbs || node == this.camera) continue;
-      if (node instanceof ShapeNbs) {
-        ShapeNbs shape = (ShapeNbs) node;
-        Shader.Illumination enableIllumination = shader.enableIllumination;
-        if (shape.selfIllumination) shader.enableIllumination = Shader.Illumination.NONE;
-        shader.ambientColor = this.ambientColor;
-        shader.diffuseColor = shape.diffuseColor;
-        shader.specularColor = shape.specularColor;
-        shader.specularPower = shape.specularPower;
-        shader.textureRaster = shape.textureRaster;
-        shader.textureWidth = shape.textureWidth;
-        shader.textureHeight = shape.textureHeight;
-        shader.bumpRaster = shape.bumpRaster;
-        shader.bumpWidth = shape.bumpWidth;
-        shader.bumpHeight = shape.bumpHeight;
-        shader.tangentBitangent = shape.tangentBitangent;
-        shader.reflectionRaster = shape.reflectionRaster;
-        shader.reflectionWidth = shape.reflectionWidth;
-        shader.reflectionHeight = shape.reflectionHeight;
-        shader.reflectionAlpha = shape.reflectionAlpha;
-        shader.reflectionMatrix = cameraMatrix.times(map.getOrDefault(shape.reflectionSkybox, IDENTITY)).inverse();
-        shader.add(shape.obj, cameraMatrix.times(entry.getValue()));
-        if (shape.selfIllumination) shader.enableIllumination = enableIllumination;
-        continue;
-      }
-      throw new IllegalStateException();
-    }
+    map.entrySet().stream()
+        .filter(entry -> entry.getKey() instanceof ShapeNbs && ((ShapeNbs) entry.getKey()).diffuseColor.a == 1)
+        .forEach(entry -> shaderAdd((ShapeNbs) entry.getKey(), entry.getValue(), cameraMatrix, map));
+    map.entrySet().stream()
+        .filter(entry -> entry.getKey() instanceof ShapeNbs && ((ShapeNbs) entry.getKey()).diffuseColor.a < 1)
+        .forEach(entry -> shaderAdd((ShapeNbs) entry.getKey(), entry.getValue(), cameraMatrix, map));
     image.getRaster().setDataElements(0, 0, imageWidth, imageHeight, imageRaster);
     if (textSupplier != null) {
       Graphics graphics = image.createGraphics();
@@ -342,6 +340,10 @@ public class EngineNbs implements Engine3d {
     @Override
     public ShapeNbs setColor(int color) {
       this.diffuseColor = new Col(color);
+      // TODO: 2025-11-04 find out how to solve transparency formula without premultiplied alpha
+      diffuseColor.r /= diffuseColor.a;
+      diffuseColor.g /= diffuseColor.a;
+      diffuseColor.b /= diffuseColor.a;
       return this;
     }
 
@@ -358,7 +360,7 @@ public class EngineNbs implements Engine3d {
         Col mul = new Col(color);
         int n = textureRaster.length;
         int[] tr = new int[n];
-        for (int i = 0; i < n; i++) tr[i] = new Col(textureRaster[i]).mul(mul).rgb();
+        for (int i = 0; i < n; i++) tr[i] = new Col(textureRaster[i]).mul(mul).argb();
         textureRaster = tr;
       }
       selfIllumination = true;
@@ -392,11 +394,12 @@ public class EngineNbs implements Engine3d {
 
   private class LightNbs extends NodeNbs implements Light {
 
-    private int color = -1;
+    private Col color = new Col(-1);
 
     @Override
     public LightNbs setColor(int color) {
-      this.color = color;
+      this.color = new Col(color);
+      if (this.color.a != 1) throw new IllegalStateException();
       return this;
     }
   }

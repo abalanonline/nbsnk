@@ -51,6 +51,7 @@ class ShaderTest {
     // during the shader improvements, it went down
     // 115 fps multiple light color and specular color
     // 2025-10-31 Pnt refactoring 105 fps -> 95 fps
+    // 2025-11-04 transparency full support refactoring 95 fps -> 85 fps
     BufferedImage texture = null;
     Obj obj = Obj.load(getClass()
 //        .getResourceAsStream("blender_cube.obj").readAllBytes());
@@ -178,7 +179,7 @@ class ShaderTest {
       for (int x = 0; x < 320; x++) {
         if (!Shader.barycentric(x, y, 60, 1, 299, 120, 60, 239, r)) continue;
         Col col = Col.barycentric(new Col(1, 1, 1, 1), new Col(1, 0.5, 0, 1), new Col(0, 0, 0, 1), r);
-        screen.image.setRGB(x, y, col.rgb());
+        screen.image.setRGB(x, y, col.argb());
       }
     }
     while (open) {

@@ -369,6 +369,7 @@ public class Animals {
     int w = 4096;
     int h = 1024;
     BufferedImage image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+    image.getGraphics().clearRect(0, 0, w, h); // opaque black
     Random random = new Random(0);
     for (int brightness = 1; brightness < 0x100; brightness++) {
       int rgb = brightness * 0x010101 | 0xFF000000;

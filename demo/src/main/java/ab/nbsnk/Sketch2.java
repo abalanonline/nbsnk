@@ -179,8 +179,8 @@ public class Sketch2 {
     engine3d.shape(cube).translation(-20, 0, 0);
     engine3d.shape(cube).translation(0, 0, 20);
     // light
-    engine3d.light().setColor(0xFFFFFF).translation(-100, 0, 15);
-    Engine3d.Node light1 = engine3d.light().setColor(0xFFFF00).translation(0, 0, -20);
+    engine3d.light().setColor(-1).translation(-100, 0, 15);
+    Engine3d.Node light1 = engine3d.light().setColor(0xFFFFFF00).translation(0, 0, -20);
     Engine3d.Shape light1o = engine3d.shape(new Shapes.Icosahedron()).selfIllumination(0xFFFFFF00);
 
     // legacy test

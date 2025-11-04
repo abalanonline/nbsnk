@@ -19,7 +19,7 @@ package ab.nbsnk.nodes;
 
 import Jama.Matrix;
 
-public class Pnt {
+public class Pnt implements Cloneable {
   public double x;
   public double y;
   public double z;
@@ -42,7 +42,11 @@ public class Pnt {
 
   @Override
   public Pnt clone() {
-    return new Pnt(x, y, z);
+    try {
+      return (Pnt) super.clone();
+    } catch (CloneNotSupportedException e) {
+      throw new Error();
+    }
   }
 
   public Pnt add(Pnt p, double alpha) {

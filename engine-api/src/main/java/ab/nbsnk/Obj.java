@@ -29,7 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-public class Obj {
+public class Obj implements Cloneable {
   public int[] face; // vertex, normal, texture
   public double[] vertex;
   public double[] normal;
@@ -39,24 +39,18 @@ public class Obj {
 
   @Override
   protected Obj clone() {
-    Obj obj = new Obj();
+    Obj obj;
+    try {
+      obj = (Obj) super.clone();
+    } catch (CloneNotSupportedException e) {
+      throw new Error();
+    }
     obj.face = Arrays.copyOf(face, face.length);
     obj.vertex = Arrays.copyOf(vertex, vertex.length);
     obj.normal = Arrays.copyOf(normal, normal.length);
     obj.texture = texture == null ? null : Arrays.copyOf(texture, texture.length);
     obj.image = image;
     obj.id = id;
-    return obj;
-  }
-
-  public static final Obj TETRAHEDRON = createTetrahedron();
-  private static Obj createTetrahedron() {
-    Obj obj = new Obj();
-    obj.id = "tetrahedron";
-    obj.vertex = new double[]{1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1};
-    int[] face = new int[]{0, 2, 1, 0, 1, 3, 0, 3, 2, 1, 2, 3};
-    obj.face = new int[face.length * 3];
-    for (int i = 0; i < face.length; i++) obj.face[i * 3] = face[i];
     return obj;
   }
 

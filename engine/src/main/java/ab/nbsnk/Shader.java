@@ -24,7 +24,7 @@ import ab.nbsnk.nodes.Pnt;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 public class Shader {
 
@@ -94,7 +94,7 @@ public class Shader {
   public int imageRasterXY;
 
   Runnable visibleFaceMethod;
-  IntSupplier visiblePixelMethod;
+  Supplier<Col[]> visiblePixelMethod;
 
   public static Pnt viewerVector(double x, double y, int imageWidth, int imageHeight, double focalLength) {
     return new Pnt(
@@ -125,7 +125,7 @@ public class Shader {
     iterateVisibleFace();
   }
 
-  public int phongShading() {
+  public Col[] phongShading() {
     Pnt barycentricNormal = Pnt.barycentric(
         normal[fn0],
         normal[fn1],
@@ -151,7 +151,7 @@ public class Shader {
         barycentricCoordinates);
     Pnt viewer = viewerVector(imageRasterX, imageRasterY, imageWidth, imageHeight, focalLength);
     Col[] diffuseSpecular = illuminationRgb(barycentricPosition, barycentricNormal, viewer);
-    Col color = getTextureColor().mul(diffuseSpecular[0]).add(diffuseSpecular[1], 1);
+    diffuseSpecular[0].mul(getTextureColor());
     if (reflectionAlpha > 0) {
       double dotVN = viewer.dot(barycentricNormal);
       Pnt R = new Pnt(
@@ -163,15 +163,16 @@ public class Shader {
       int reflectionY = Math.min(Math.max(0, (int) Math.round((0.5 - Math.asin(r1.get(1, 0)) / Math.PI) * reflectionHeight)), reflectionHeight - 1);
       int reflectionX = (int) Math.round((1 - Math.atan2(r1.get(0, 0), r1.get(2, 0)) / Math.PI) / 2 * reflectionWidth);
       reflectionX = (reflectionX % reflectionWidth + reflectionWidth) % reflectionWidth;
-      color = new Col().add(color, 1 - reflectionAlpha)
+      // retain diffuse alpha
+      diffuseSpecular[0] = diffuseSpecular[0].clone().add(diffuseSpecular[0], -reflectionAlpha)
           .add(new Col(reflectionRaster[reflectionY * reflectionWidth + reflectionX]), reflectionAlpha);
     }
-    return color.rgb();
+    return diffuseSpecular;
   }
 
   public Col[] illuminationRgb(Pnt xyz, Pnt normal, Pnt viewer) {
-    Col diffuseRgb = new Col();
-    Col specularRgb = new Col();
+    Col diffuseRgb = new Col().opaque();
+    Col specularRgb = new Col().opaque();
     for (int i = 0; i < lightPoint.length; i++) {
       Pnt light = lightPoint[i].clone().add(xyz, -1).normalize();
       double dotLN = light.dot(normal);
@@ -185,28 +186,29 @@ public class Shader {
       diffuseRgb.add(lightColor[i], Math.max(0, dotLN)); // diffuse
       specularRgb.add(lightColor[i], Math.pow(Math.max(0, dotRV), specularPower)); // specular
     }
+    // full opaque Col.add() in this method
     return new Col[]{diffuseRgb.add(ambientColor, 1).mul(diffuseColor), specularRgb.mul(specularColor)};
   }
 
-  public int gouraudShading() {
+  public Col[] gouraudShading() {
 //    double illumination = barycentricValue(
 //        gouraudIllumination[0], gouraudIllumination[1], gouraudIllumination[2], barycentricCoordinates);
 //    Col col = new Col(illumination, illumination, illumination, 1);
     Col diffuse = Col.barycentric(gouraudIllumination[0], gouraudIllumination[2], gouraudIllumination[4], barycentricCoordinates);
     Col specular = Col.barycentric(gouraudIllumination[1], gouraudIllumination[3], gouraudIllumination[5], barycentricCoordinates);
-    return getTextureColor().mul(diffuse).add(specular, 1).rgb();
+    return new Col[]{getTextureColor().mul(diffuse), specular};
   }
 
-  public int lambertTexture() {
+  public Col[] lambertTexture() {
 //    double illumination = gouraudIllumination[0];
 //    Col col = new Col(illumination, illumination, illumination, 1);
-    return getTextureColor().mul(gouraudIllumination[0]).add(gouraudIllumination[1], 1).rgb();
+    return new Col[]{getTextureColor().mul(gouraudIllumination[0]), gouraudIllumination[1]};
   }
 
-  public int pixelZbuffer() {
-    if (textureHeight > 0) return getTextureColor().rgb();
+  public Col[] pixelZbuffer() {
+    if (textureHeight > 0) return new Col[]{getTextureColor(), new Col()};
     double z = barycentricValue(v0.z, v1.z, v2.z, barycentricCoordinates);
-    return (int) (z * 0xFF) * 0x010101;
+    return new Col[]{new Col((int) (z * 0xFF) * 0x010101 + 0xFF000000), new Col()};
   }
 
   public void drawVertex() {
@@ -357,7 +359,12 @@ public class Shader {
         barycentricCoordinates[2] *= (1 - z) / (1 - v2.z);
         ttx = barycentricValue(texture[ft0], texture[ft1], texture[ft2], barycentricCoordinates);
         tty = barycentricValue(texture[ft0 + 1], texture[ft1 + 1], texture[ft2 + 1], barycentricCoordinates);
-        imageRaster[imageRasterXY] = visiblePixelMethod.getAsInt();
+        Col[] col = visiblePixelMethod.get();
+        if (col[0].a < 1) {
+          // full opaque add
+          col[0] = new Col().opaque().add(new Col(imageRaster[imageRasterXY]), 1 - col[0].a).add(col[0], col[0].a);
+        }
+        imageRaster[imageRasterXY] = col[0].add(col[1], 1).argb();
       }
     }
   }
@@ -377,6 +384,7 @@ public class Shader {
   }
 
   public void addLight(Pnt xyz, Col color) {
+    if (color.a != 1) throw new IllegalStateException();
     Light light = new Light();
     light.xyz = xyz.clone();
     light.color = color.clone();
