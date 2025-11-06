@@ -23,6 +23,7 @@ import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Supplier;
 
 public class SceneViewer implements Runnable {
   public Engine3d engine3d;
@@ -32,6 +33,7 @@ public class SceneViewer implements Runnable {
   public Engine3d.Node camera;
   public Engine3d.Group sky;
   public Engine3d.Group node;
+  public Supplier<double[]> rotation;
 
   public SceneViewer(Engine3d engine3d, Dimension screenSize) {
     this.engine3d = engine3d;
@@ -79,13 +81,16 @@ public class SceneViewer implements Runnable {
           }
         }
       }
-      node.rotation(gamepadAxis[0] / 1000.0, gamepadAxis[1] / 1000.0, gamepadAxis[8] / 12.0);
-      double cameraYaw = gamepadAxis[2] / 1000.0;
-      double cameraPitch = gamepadAxis[3] / 1000.0;
-      cameraRails.rotation(cameraYaw, cameraPitch, 0);
-      cameraRig.rotation(0, -cameraPitch, 0);
-      sky.rotation(-cameraYaw, 0, 0);
-      camera.rotation(0, cameraPitch, 0);
+      gamepadAxis[4] += gamepadAxis[6]; gamepadAxis[2] += gamepadAxis[6]; gamepadAxis[6] = 0;
+      gamepadAxis[5] += gamepadAxis[7]; gamepadAxis[3] += gamepadAxis[7]; gamepadAxis[7] = 0;
+      double[] rotation = this.rotation != null ? this.rotation.get() : new double[]{
+          gamepadAxis[4] / 1000.0, gamepadAxis[5] / 1000.0, gamepadAxis[8] / 12.0,
+          gamepadAxis[2] / 1000.0, gamepadAxis[3] / 1000.0};
+      node.rotation(rotation[0], rotation[1], rotation[2]);
+      cameraRails.rotation(rotation[3], rotation[4], 0);
+      cameraRig.rotation(0, -rotation[4], 0);
+      sky.rotation(-rotation[3], 0, 0);
+      camera.rotation(0, rotation[4], 0);
       engine3d.update();
       screen.update();
       try { Thread.sleep(20); } catch (InterruptedException ignore) {}

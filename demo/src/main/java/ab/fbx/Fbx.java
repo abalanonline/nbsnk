@@ -65,6 +65,21 @@ public class Fbx {
 
   }
 
+  public String debugConnections(Node node) {
+    StringBuilder s = new StringBuilder();
+    Map<String, List<Node>> opn = op.get(node);
+    s.append(node.name);
+    if (opn != null) s.append(" ").append(String.join(" ", opn.keySet()));
+    s.append("\n");
+    Map<String, List<Node>> oon = oo.get(node);
+    if (oon != null) for (Node n : oon.entrySet().stream()
+        .flatMap(stringListEntry -> stringListEntry.getValue().stream()).collect(Collectors.toList())) {
+      String ns = debugConnections(n);
+      Arrays.stream(ns.split("\n")).map(a -> "  " + a + "\n").forEach(s::append);
+    }
+    return s.toString();
+  }
+
   public Geometry[] geometry() {
     return Arrays.stream(root.get("Objects").getAll("Geometry")).map(n -> new Geometry(this, n)).toArray(Geometry[]::new);
   }

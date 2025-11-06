@@ -19,6 +19,7 @@ package ab.fbx;
 
 import ab.nbsnk.Obj;
 import ab.nbsnk.nodes.Col;
+import ab.nbsnk.nodes.Pnt;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -39,8 +40,9 @@ public class Geometry {
       "Shininess", "Opacity", "Reflectivity", "ShininessExponent", "?ReflectionColor", "?TransparentColor",
       "?ShadingModel", "?EmissiveFactor", "?SpecularFactor", "?AmbientFactor", "?BumpFactor");
   Fbx fbx;
-  Node node;
-  Node material;
+  public Node geometry;
+  public Node model;
+  public Node material;
   Node[] materialProperties;
 
   Col diffuseColor;
@@ -49,10 +51,11 @@ public class Geometry {
   public Double reflectionFactor;
   public Double shininessExponent;
 
-  public Geometry(Fbx fbx, Node node) {
+  public Geometry(Fbx fbx, Node geometry) {
     this.fbx = fbx;
-    this.node = node;
-    this.material = fbx.oo.get(fbx.or.get(node).get("Model").get(0)).get("Material").get(0);
+    this.geometry = geometry;
+    this.model = fbx.or.get(geometry).get("Model").get(0);
+    this.material = fbx.oo.get(model).get("Material").get(0);
     this.materialProperties = material.get("Properties70").nested;
     this.diffuseColor = getPropertyCol("DiffuseColor");
     this.opacity = getPropertyDouble("Opacity");
@@ -63,7 +66,7 @@ public class Geometry {
     // Diffuse (Vector) repeats DiffuseColor (A)
     // Specular (Vector) repeats SpecularColor (A)
     // Shininess (double) repeats ShininessExponent (A)
-    Arrays.stream(materialProperties).filter(n -> !PROPERTY_KEYS.contains(n.property[0])).forEach(System.out::println);
+//    Arrays.stream(materialProperties).filter(n -> !PROPERTY_KEYS.contains(n.property[0])).forEach(System.out::println);
   }
 
   public Col getPropertyCol(String key) {
@@ -100,17 +103,19 @@ public class Geometry {
     String diffuseColor = diffuseColorNode == null ? null : diffuseColorNode.getString("RelativeFilename");
     if (diffuseColor == null) return null;
     diffuseColor = diffuseColor.substring(Math.max(diffuseColor.lastIndexOf('/'), diffuseColor.lastIndexOf('\\')) + 1);
+    if (".".equals(diffuseColor)) diffuseColor = "default.png";
     Path path = fbx.path.resolve(diffuseColor);
     if (!Files.isRegularFile(path)) throw new IllegalStateException(path.toString());
     return Obj.image(path);
   }
 
   public BufferedImage getDiffuseMap() {
-    return getImageMap("DiffuseColor");
+    BufferedImage image = getImageMap("DiffuseColor");
+    return image == null ? getImageMap("3dsMax|CoronaPhysicalMtlPb|baseTexmap") : image;
   }
 
   public BufferedImage getBumpMap() {
-    return getImageMap("Bump");
+    return getImageMap("Bump"); // 3dsMax|CoronaPhysicalMtlPb|baseBumpTexmap
   }
 
   public int getDiffuseColor() {
@@ -120,13 +125,13 @@ public class Geometry {
   }
 
   public double[] getNormalDoubles(String key1, String key2) {
-    Node[] layerElementNormals = node.getAll("LayerElement" + key1);
+    Node[] layerElementNormals = geometry.getAll("LayerElement" + key1);
     if (layerElementNormals.length == 0) return new double[6];
     return (double[]) layerElementNormals[0].get(key2).property[0];
   }
 
   public int[] getPolygonIndex(String key1, String key2, int[] polygonVertexIndex) {
-    Node[] layerElementNormals = node.getAll("LayerElement" + key1);
+    Node[] layerElementNormals = geometry.getAll("LayerElement" + key1);
     if (layerElementNormals.length == 0) return new int[polygonVertexIndex.length];
     Node layerElementNormal = layerElementNormals[0];
     String mappingInformationType = layerElementNormal.getString("MappingInformationType");
@@ -160,12 +165,43 @@ public class Geometry {
     return polygonNormalIndex;
   }
 
-  public Obj getObj() {
-    double[] vertices = (double[]) node.get("Vertices").property[0];
-    int[] polygonVertexIndex = (int[]) node.get("PolygonVertexIndex").property[0];
+  /**
+   * In place rotation, angle 0-1, axis 0x,1y,2z
+   */
+  public static void rotate(double[] vertex, double angle, int axis) {
+    angle = 2 * Math.PI * angle;
+    double s = Math.sin(angle);
+    double c = Math.cos(angle);
+    int ax = (axis + 1) % 3;
+    int ay = (axis + 2) % 3;
+    for (int i = 0; i < vertex.length; i += 3) {
+      double x = vertex[i + ax];
+      double y = vertex[i + ay];
+      vertex[i + ax] = x * c - y * s;
+      vertex[i + ay] = x * s + y * c;
+    }
+  }
 
+  public static Pnt getProperties70(Node node) {
+    return new Pnt((Double) node.property[4], (Double) node.property[5], (Double) node.property[6]);
+  }
+
+  public static void translate(double[] vertices, Pnt pnt) {
+    for (int i = 0; i < vertices.length; i += 3) {
+      vertices[i] += pnt.x;
+      vertices[i + 1] += pnt.y;
+      vertices[i + 2] += pnt.z;
+    }
+  }
+
+  public Obj getObj() {
+    double[] vertices = (double[]) geometry.get("Vertices").property[0];
+    final int verticesLength = vertices.length;
+    vertices = Arrays.copyOf(vertices, verticesLength);
+    int[] polygonVertexIndex = (int[]) geometry.get("PolygonVertexIndex").property[0];
 
     double[] normals = getNormalDoubles("Normal", "Normals");
+    normals = Arrays.copyOf(normals, normals.length);
     int[] polygonNormalIndex = getPolygonIndex("Normal", "Normals", polygonVertexIndex);
     double[] uv = getNormalDoubles("UV", "UV");
     int[] polygonUvIndex = getPolygonIndex("UV", "UV", polygonVertexIndex);
@@ -194,6 +230,37 @@ public class Geometry {
     }
     int[] face = faceList.stream().mapToInt(a -> a).toArray();
     Obj obj = new Obj();
+    Pnt lclTranslation = null;
+    Pnt lclRotation = null;
+    Pnt lclScaling = null;
+    Pnt scalingPivot = null;
+    for (Node p : model.get("Properties70").nested) {
+      switch ((String) p.property[0]) {
+        case "Lcl Translation": lclTranslation = getProperties70(p); break;
+        case "Lcl Rotation": lclRotation = getProperties70(p); break;
+        case "Lcl Scaling": lclScaling = getProperties70(p); break;
+        case "ScalingPivot": scalingPivot = getProperties70(p); break;
+      }
+    }
+    if (lclScaling != null) {
+      //if (scalingPivot != null) translate(vertices, scalingPivot);
+      for (int i = 0; i < verticesLength; i += 3) {
+        vertices[i] *= lclScaling.x;
+        vertices[i + 1] *= lclScaling.y;
+        vertices[i + 2] *= lclScaling.z;
+      }
+      //if (scalingPivot != null) translate(vertices, new Pnt(-scalingPivot.x, -scalingPivot.y, -scalingPivot.z));
+    }
+    if (lclRotation != null) {
+      rotate(vertices, lclRotation.z / 360, 1); // before y2
+      rotate(normals, lclRotation.z / 360, 1);
+      rotate(vertices, lclRotation.y / 360, 2); // before x0
+      rotate(normals, lclRotation.y / 360, 2);
+      rotate(vertices, lclRotation.x / 360, 0); // after y2
+      rotate(normals, lclRotation.x / 360, 0);
+    }
+    if (lclTranslation != null) translate(vertices, lclTranslation);
+
     obj.vertex = vertices;
     obj.face = face;
     obj.normal = normals;
