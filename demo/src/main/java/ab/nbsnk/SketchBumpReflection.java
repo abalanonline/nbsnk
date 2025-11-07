@@ -60,7 +60,7 @@ public class SketchBumpReflection {
 //    engine3d.shape(obj1).setBumpMap(obj1bump).setReflectionMap(photosphere, 0.3, sceneViewer.sky).setSpecular(-1, 100).connect(sceneViewer.node);
     Obj obj = Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj")).interpolateNormal();
     engine3d.shape(obj).setSpecular(-1, 100).setReflectionMap(photosphere, 0.3, sceneViewer.sky).connect(sceneViewer.node);
-    engine3d.light().setColor(0xFFBF7F).translation(-100, 100, 100);
+    engine3d.light().setColor(0xFFFFBF7F).translation(-100, 100, 100);
     sceneViewer.run();
   }
 }

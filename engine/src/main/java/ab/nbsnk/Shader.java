@@ -21,6 +21,7 @@ import Jama.Matrix;
 import ab.nbsnk.nodes.Col;
 import ab.nbsnk.nodes.Pnt;
 
+import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,6 +61,7 @@ public class Shader {
   public int reflectionHeight;
   public double reflectionAlpha;
   public Matrix reflectionMatrix;
+  public Point reflectionTest;
 
   public Col ambientColor = new Col();
   public Col diffuseColor = new Col(-1);
@@ -160,8 +162,17 @@ public class Shader {
           2 * dotVN * barycentricNormal.z - viewer.z
       ).normalize();
       Matrix r1 = reflectionMatrix.times(R.toMatrix(0));
-      int reflectionY = Math.min(Math.max(0, (int) Math.round((0.5 - Math.asin(r1.get(1, 0)) / Math.PI) * reflectionHeight)), reflectionHeight - 1);
-      int reflectionX = (int) Math.round((1 - Math.atan2(r1.get(0, 0), r1.get(2, 0)) / Math.PI) / 2 * reflectionWidth);
+      double rx = r1.get(0, 0);
+      double ry = r1.get(1, 0);
+      double rz = r1.get(2, 0);
+      double length = Math.sqrt(rx * rx + ry * ry + rz * rz);
+      if (length < 0.999 || length > 1.001) throw new IllegalStateException();
+      if (reflectionTest != null && reflectionTest.x == imageRasterX && imageHeight - 1 - reflectionTest.y == imageRasterY) {
+        System.out.println(rx + ", " + ry + ", " + rz + ", ");
+        reflectionTest = null;
+      }
+      int reflectionY = Math.min(Math.max(0, (int) Math.round((0.5 - Math.asin(ry) / Math.PI) * reflectionHeight)), reflectionHeight - 1);
+      int reflectionX = (int) Math.round((1 - Math.atan2(rx, rz) / Math.PI) / 2 * reflectionWidth);
       reflectionX = (reflectionX % reflectionWidth + reflectionWidth) % reflectionWidth;
       // retain diffuse alpha
       diffuseSpecular[0] = diffuseSpecular[0].clone().add(diffuseSpecular[0], -reflectionAlpha)
