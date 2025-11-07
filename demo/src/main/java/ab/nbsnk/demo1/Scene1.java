@@ -15,9 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package ab.nbsnk;
+package ab.nbsnk.demo1;
 
 import ab.fbx.Geometry;
+import ab.nbsnk.Engine3d;
+import ab.nbsnk.EngineNbs;
+import ab.nbsnk.FpsMeter;
+import ab.nbsnk.Obj;
+import ab.nbsnk.SceneViewer;
 import ab.nbsnk.nodes.Col;
 import ab.nbsnk.nodes.Shapes;
 
@@ -29,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 // model Toyota CHR by Metos CC BY 4.0 https://skfb.ly/o6KEY
 // photo ONroute West Lorne Canadian Tire Gas+
-public class Demo1 {
+public class Scene1 {
   public static void main(String[] args) {
     // FIXME: 2025-11-06 windows and mirrors specular and reflection
     double[] lights = new double[]{
@@ -56,8 +61,8 @@ public class Demo1 {
     double far = 100_000.0;
     Engine3d engine3d = new EngineNbs().setFarClip(far);
     FpsMeter fpsMeter = new FpsMeter();
-    if (!hdtv) engine3d.textSupplier(() -> String.format("fps: %.0f", fpsMeter.getFps()));
     SceneViewer sceneViewer = new SceneViewer(engine3d, new Dimension(hdtv ? 1280 : 640, hdtv ? 720 : 360));
+    if (hdtv) engine3d.textSupplier(null);
     sceneViewer.cameraRig.translation(0, 0, 600);
 
     BufferedImage photosphere = Obj.image(Paths.get("assets/demo1/photosphere.jpg"));
@@ -120,7 +125,7 @@ public class Demo1 {
         if (n < 0) throw new IllegalStateException();
         try { Thread.sleep(n / 1_000_000); } catch (InterruptedException e) {}
       }
-      double v = System.nanoTime() / 20_000_000_000.0 / (hdtv ? 10 : 1);
+      double v = System.nanoTime() / 20_000_000_000.0 / (hdtv ? 50 : 1);
       return new double[]{0, 0, 0, v, -0.01};
     };
     sceneViewer.run();

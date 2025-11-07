@@ -45,6 +45,8 @@ public class SceneViewer implements Runnable {
     sky = engine3d.group();
     sky.connect(cameraRig);
     node = engine3d.group();
+    FpsMeter fpsMeter = new FpsMeter();
+    engine3d.textSupplier(() -> String.format("fps: %.0f", fpsMeter.getFps()));
   }
 
   @Override
@@ -53,8 +55,6 @@ public class SceneViewer implements Runnable {
     boolean[] gamepadButton = new boolean[10];
     double[] gamepadAxis = new double[9];
     boolean systemExit = false;
-    FpsMeter fpsMeter = new FpsMeter();
-    engine3d.textSupplier(() -> String.format("fps: %.0f", fpsMeter.getFps()));
     Screen screen = new Screen();
     screen.gameController = true;
     screen.image = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_RGB);
