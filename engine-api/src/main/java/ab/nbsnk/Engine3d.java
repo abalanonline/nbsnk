@@ -45,6 +45,8 @@ public interface Engine3d extends AutoCloseable {
 
   Engine3d setFarClip(double value);
 
+  Engine3d setFocalLength(double value);
+
   void update();
 
   /**

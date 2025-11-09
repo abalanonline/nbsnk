@@ -20,7 +20,6 @@ package ab.nbsnk.demo1;
 import ab.fbx.Geometry;
 import ab.nbsnk.Engine3d;
 import ab.nbsnk.EngineNbs;
-import ab.nbsnk.FpsMeter;
 import ab.nbsnk.Obj;
 import ab.nbsnk.SceneViewer;
 import ab.nbsnk.nodes.Col;
@@ -30,7 +29,6 @@ import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.nio.file.Paths;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 
 // model Toyota CHR by Metos CC BY 4.0 https://skfb.ly/o6KEY
 // photo ONroute West Lorne Canadian Tire Gas+
@@ -57,10 +55,8 @@ public class Scene1 {
     };
     boolean debug = false;
     boolean hdtv = false;
-//    debug = true;
     double far = 100_000.0;
     Engine3d engine3d = new EngineNbs().setFarClip(far);
-    FpsMeter fpsMeter = new FpsMeter();
     SceneViewer sceneViewer = new SceneViewer(engine3d, new Dimension(hdtv ? 1280 : 640, hdtv ? 720 : 360));
     if (hdtv) engine3d.textSupplier(null);
     sceneViewer.cameraRig.translation(0, 0, 600);
@@ -117,17 +113,12 @@ public class Scene1 {
         break;
       }
     }
-    AtomicLong nanoTime = new AtomicLong();
-    if (!debug) sceneViewer.rotation = () -> {
-      if (hdtv) {
-        if (nanoTime.get() == 0L) nanoTime.set(System.nanoTime());
-        long n = nanoTime.addAndGet(1_000_000_000) - System.nanoTime();
-        if (n < 0) throw new IllegalStateException();
-        try { Thread.sleep(n / 1_000_000); } catch (InterruptedException e) {}
-      }
-      double v = System.nanoTime() / 20_000_000_000.0 / (hdtv ? 50 : 1);
-      return new double[]{0, 0, 0, v, -0.01};
-    };
+    if (!debug) sceneViewer.rotation = nanoTime -> new double[]{0, 0, 0, nanoTime / 20_000_000_000.0, -0.01};
+    if (hdtv) {
+      sceneViewer.engine3d.textSupplier(null);
+      sceneViewer.outputFolder = Paths.get("assets/output");
+      sceneViewer.outputLimit = 1000;
+    }
     sceneViewer.run();
   }
 }

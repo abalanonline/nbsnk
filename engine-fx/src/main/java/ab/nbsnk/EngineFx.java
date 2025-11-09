@@ -222,6 +222,12 @@ public class EngineFx implements Engine3d {
   }
 
   @Override
+  public EngineFx setFocalLength(double value) {
+    this.perspectiveCamera.setFieldOfView(Math.atan2(24.0 / 2, value) * 2 / (Math.PI * 2) * 360);
+    return this;
+  }
+
+  @Override
   public void update() {
     JavaFx.App.scene = this.scene;
     try {

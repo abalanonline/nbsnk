@@ -46,6 +46,7 @@ public class EngineNbs implements Engine3d {
   private Supplier<String> textSupplier;
   private Map<BufferedImage, int[]> imageCache = new HashMap<>();
   private Col ambientColor = new Col();
+  private double focalLength = 50;
 
   public static Matrix multiply(Matrix matrix, double tx, double ty, double tz, double rx, double ry, double rz) {
     Matrix t = new Matrix(new double[][]{
@@ -145,6 +146,12 @@ public class EngineNbs implements Engine3d {
     return this;
   }
 
+  @Override
+  public EngineNbs setFocalLength(double value) {
+    this.focalLength = value;
+    return this;
+  }
+
   private static void dfs(Set<NodeNbs> nodes, Matrix tm, Map<NodeNbs, Matrix> map) {
     for (NodeNbs node : nodes) {
       if (!node.visible) continue;
@@ -183,6 +190,7 @@ public class EngineNbs implements Engine3d {
   @Override
   public void update() {
     shader.cls(imageWidth, imageHeight);
+    shader.focalLength = this.focalLength / 24 * imageHeight;
     if (background == null) {
       Arrays.fill(imageRaster, -1);
     } else {

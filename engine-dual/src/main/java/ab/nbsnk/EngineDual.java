@@ -122,6 +122,13 @@ public class EngineDual implements Engine3d {
   }
 
   @Override
+  public EngineDual setFocalLength(double value) {
+    engineLeft.setFocalLength(value);
+    engineRight.setFocalLength(value);
+    return this;
+  }
+
+  @Override
   public void update() {
     engineLeft.update();
     engineRight.update();

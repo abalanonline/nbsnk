@@ -103,6 +103,14 @@ public class Obj implements Cloneable {
     }
   }
 
+  public static Obj load(Path path) {
+    try {
+      return load(Files.readAllBytes(path));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   public static BufferedImage image(Path path) {
     try {
       return ImageIO.read(Files.newInputStream(path));

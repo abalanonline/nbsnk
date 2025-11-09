@@ -19,11 +19,17 @@ package ab.nbsnk;
 
 import ab.jnc3.Screen;
 
+import javax.imageio.ImageIO;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Supplier;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class SceneViewer implements Runnable {
   public Engine3d engine3d;
@@ -33,7 +39,10 @@ public class SceneViewer implements Runnable {
   public Engine3d.Node camera;
   public Engine3d.Group sky;
   public Engine3d.Group node;
-  public Supplier<double[]> rotation;
+  public Function<Long, double[]> rotation;
+  public int fps = 50;
+  public Path outputFolder; // ffmpeg -framerate 50 -pattern_type glob -i "file*.png" -c:v libx264 -crf 30 file.mp4
+  public int outputLimit; // ffmpeg -stream_loop 8 -i file.mp4 -c:v copy file3m.mp4
 
   public SceneViewer(Engine3d engine3d, Dimension screenSize) {
     this.engine3d = engine3d;
@@ -55,12 +64,27 @@ public class SceneViewer implements Runnable {
     boolean[] gamepadButton = new boolean[10];
     double[] gamepadAxis = new double[9];
     boolean systemExit = false;
-    Screen screen = new Screen();
-    screen.gameController = true;
-    screen.image = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_RGB);
-    screen.preferredSize = screenSize;
-    screen.keyListener = keyListener::add;
-    engine3d.open(screen.image);
+    BufferedImage screenImage = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_RGB);
+    int screenImageCount = 0;
+    Screen screen = null;
+    if (outputFolder != null) {
+      try {
+        for (Path path : Files.list(outputFolder)
+            .filter(path -> path.getFileName().toString().matches("file\\d+.png")).collect(Collectors.toList())) {
+          Files.delete(path);
+        }
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    } else {
+      screen = new Screen();
+      screen.gameController = true;
+      screen.image = screenImage;
+      screen.preferredSize = screenSize;
+      screen.keyListener = keyListener::add;
+    }
+    engine3d.open(screenImage);
+    long nanoTime = 0;
     while (!systemExit) {
       while (!keyListener.isEmpty()) {
         String key = keyListener.remove();
@@ -83,7 +107,7 @@ public class SceneViewer implements Runnable {
       }
       gamepadAxis[4] += gamepadAxis[6]; gamepadAxis[2] += gamepadAxis[6]; gamepadAxis[6] = 0;
       gamepadAxis[5] += gamepadAxis[7]; gamepadAxis[3] += gamepadAxis[7]; gamepadAxis[7] = 0;
-      double[] rotation = this.rotation != null ? this.rotation.get() : new double[]{
+      double[] rotation = this.rotation != null ? this.rotation.apply(nanoTime) : new double[]{
           gamepadAxis[4] / 1000.0, gamepadAxis[5] / 1000.0, gamepadAxis[8] / 12.0,
           gamepadAxis[2] / 1000.0, gamepadAxis[3] / 1000.0};
       node.rotation(rotation[0], rotation[1], rotation[2]);
@@ -92,10 +116,24 @@ public class SceneViewer implements Runnable {
       sky.rotation(-rotation[3], 0, 0);
       camera.rotation(0, rotation[4], 0);
       engine3d.update();
-      screen.update();
-      try { Thread.sleep(20); } catch (InterruptedException ignore) {}
+      nanoTime += 1_000_000_000L / fps;
+      if (outputFolder != null) {
+        try {
+          ImageIO.write(screenImage, "png", Files.newOutputStream(
+              outputFolder.resolve(String.format("file%04d.png", screenImageCount++))));
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+        System.out.print(".");
+        if (screenImageCount % fps == 0) System.out.println(String.format("%02d", screenImageCount / fps));
+        if (outputLimit != 0 && screenImageCount >= outputLimit) break;
+      } else  {
+        screen.update();
+        long t = nanoTime - System.nanoTime();
+        if (t <= 0) nanoTime -= t; else try { Thread.sleep(t / 1_000_000); } catch (InterruptedException ignore) {}
+      }
     }
-    screen.close();
+    if (screen != null) screen.close();
     engine3d.close();
 
   }
