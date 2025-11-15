@@ -5,6 +5,12 @@ nbsnk is a 3d game engine
 
 ![sketch3](demo/src/test/resources/sketch3_pigs.png)
 
+![demo1](demo/src/test/resources/demo1_teapot.png)
+
 ![sketch3](demo/src/test/resources/sheep_apple.png)
 
 ![demo1](demo/src/test/resources/demo1_bubble.png)
+
+![demo1](demo/src/test/resources/demo1_cat.png)
+
+![demo1](demo/src/test/resources/demo1_car.png)
