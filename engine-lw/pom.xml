@@ -41,6 +41,12 @@
       <artifactId>engine-api</artifactId>
       <version>1.0</version>
     </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>5.18.0</version>
+      <scope>test</scope>
+    </dependency>
 
     <!-- FIXME clean dependencies -->
     <dependency>
@@ -55,20 +61,8 @@
     </dependency>
     <dependency>
       <groupId>org.lwjgl</groupId>
-      <artifactId>lwjgl-glfw</artifactId>
-      <version>3.3.6</version>
-      <classifier>natives-linux</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.lwjgl</groupId>
       <artifactId>lwjgl-stb</artifactId>
       <version>3.3.6</version>
-    </dependency>
-    <dependency>
-      <groupId>org.lwjgl</groupId>
-      <artifactId>lwjgl-stb</artifactId>
-      <version>3.3.6</version>
-      <classifier>natives-linux</classifier>
     </dependency>
     <dependency>
       <groupId>org.lwjgl</groupId>
@@ -136,5 +130,21 @@
       <classifier>natives-linux</classifier>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>3.5.4</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 
 </project>
