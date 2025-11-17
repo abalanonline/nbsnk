@@ -156,7 +156,7 @@ public class Sketch2 {
 //    Engine3d engine3d = new EngineFx().open(screen.image);
 //    Engine3d engine3d = new EngineNbs().open(screen.image);
     FpsMeter fpsMeter = new FpsMeter();
-    Engine3d engine3d = new EngineDual().open(screen.image)
+    Engine3d engine3d = new EngineDual(new EngineNbs(), new EngineLw()).open(screen.image)
         .textSupplier(() -> String.format("fps: %.0f", fpsMeter.getFps())).setFarClip(80)
         .setAmbient(0xFF221100).background(background);
     // teapot test

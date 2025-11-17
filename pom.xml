@@ -32,6 +32,7 @@
     <module>engine-api</module>
     <module>engine</module>
     <module>engine-fx</module>
+    <module>engine-lw</module>
     <module>engine-dual</module>
     <module>demo</module>
   </modules>

@@ -38,12 +38,7 @@
   <dependencies>
     <dependency>
       <groupId>ab.nbsnk</groupId>
-      <artifactId>engine</artifactId>
-      <version>1.0</version>
-    </dependency>
-    <dependency>
-      <groupId>ab.nbsnk</groupId>
-      <artifactId>engine-fx</artifactId>
+      <artifactId>engine-api</artifactId>
       <version>1.0</version>
     </dependency>
   </dependencies>

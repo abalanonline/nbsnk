@@ -44,6 +44,21 @@
     </dependency>
     <dependency>
       <groupId>ab.nbsnk</groupId>
+      <artifactId>engine</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>ab.nbsnk</groupId>
+      <artifactId>engine-fx</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>ab.nbsnk</groupId>
+      <artifactId>engine-lw</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>ab.nbsnk</groupId>
       <artifactId>engine-dual</artifactId>
       <version>1.0</version>
     </dependency>

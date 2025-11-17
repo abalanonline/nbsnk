@@ -50,7 +50,7 @@ public class SketchBumpReflection {
     Dimension screenSize = new Dimension(640, 360);
     BufferedImage background = new BufferedImage(screenSize.width, screenSize.height, BufferedImage.TYPE_INT_ARGB);
     Sketch2.renderNoise(background);
-    Engine3d engine3d = new EngineDual().background(background);
+    Engine3d engine3d = new EngineDual(new EngineNbs(), new EngineFx()).background(background);
     SceneViewer sceneViewer = new SceneViewer(engine3d, screenSize);
     BufferedImage photosphere = Obj.image(Paths.get("assets/reflection_sphere.jpg"));
     engine3d.shape(Obj.load(Engine3d.class.getResourceAsStream("blender_uv_sphere.obj"))

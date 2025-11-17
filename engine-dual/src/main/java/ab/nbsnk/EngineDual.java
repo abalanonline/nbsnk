@@ -40,9 +40,9 @@ public class EngineDual implements Engine3d {
   private BufferedImage imageRight;
   private Supplier<String> textSupplier;
 
-  public EngineDual() {
-    this.engineLeft = new EngineNbs();
-    this.engineRight = new EngineFx();
+  public EngineDual(Engine3d engineLeft, Engine3d engineRight) {
+    this.engineLeft = engineLeft;
+    this.engineRight = engineRight;
   }
 
   @Override

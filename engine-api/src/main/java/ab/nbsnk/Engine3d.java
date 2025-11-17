@@ -70,7 +70,9 @@ public interface Engine3d extends AutoCloseable {
 
     /**
      * Use the current transformation as a pivot and reset the values.
+     * Deprecated, creating a group does the same without losing control of rotations.
      */
+    @Deprecated
     Node setPivot();
 
     Node connect(Group node);
